@@ -22,7 +22,7 @@ A brief description of files & what in it
 ```
 
 
-## how to use DOsBOX
+## how to run it locally
 
 1. download it 
 2. MASM/TASM extension
