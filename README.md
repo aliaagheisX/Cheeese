@@ -31,3 +31,5 @@ A brief description of files & what in it
     - Assembler option on ```tasm```
     - scroll down to ```emulator```
     - make sure it select ```dosBox```
+4.  open main.asm
+5. right click -> run asm file
