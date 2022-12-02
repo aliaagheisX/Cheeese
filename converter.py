@@ -11,7 +11,7 @@ files = {
     'Bking':[],
     'Wking':[],
 }
-""" for filename in files.keys():
+for filename in files.keys():
     
     im = Image.open("r/" + filename + ".png").convert('LA') ####greyscal, alpha
     pixels = list(im.getdata())
@@ -38,13 +38,7 @@ files = {
 
     StrC = StrC[:-2]
     print(StrC)
-    print('\n\n') """
-    
-
-    
-for i in range(8*8):
-    print(f"{25*i}, ", end='')
-    
+    print('\n\n')
 # Used pallete: https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/VGA_palette_with_black_borders.svg/1200px-VGA_palette_with_black_borders.svg.png
 # This pallete is the default 256 colors in the Tasm/Masm Extension for VS code, Note that the original asm86 only supported the first 16 colors
 # So make sure while drawing your art to pick (via color picker) from this palette, btw: Krita(~30mb) is a great and easy app for creating pixel art:
