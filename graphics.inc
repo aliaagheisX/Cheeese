@@ -76,3 +76,21 @@ lp1:    push cx
 loop lp1
             popa
 ENDM DrawImg
+
+Available_BackGround MAcro startPoint ,highlightColor ,boardWidth 
+        LOCAL lp1
+        pusha                
+        mov cx,boardWidth            ;height
+        mov di,startPoint
+        lp1:
+        push cx
+        ;draw line 
+        mov  al, highlightColor      ;Background color of available move
+        mov  cx, boardWidth          ;wedth   
+        REP  STOSB 
+        sub  di,boardWidth           
+        add  di,320     
+        pop cx
+        loop lp1
+        popa
+ENDM Available_BackGround

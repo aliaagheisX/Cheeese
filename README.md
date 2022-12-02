@@ -6,9 +6,10 @@ A brief description of files & what in it
 ```
     ├── ...
     |── graphics.inc
-    |   ├── CLRS                                          # clear screen
-    |   ├── DrawGrid (width of square, colors)            # draw grid 
-    |   ├── DrawImg  (img, width of image, startPoint)    # draw image **skipping color 4**
+    |   ├── CLRS                                                           # clear screen
+    |   ├── DrawGrid (width of square, colors)                             # draw grid 
+    |   ├── DrawImg  (img, width of image, startPoint)                     # draw image **skipping color 4**
+    |   ├── Available_BackGround (startPoint ,highlightColor ,boardWidth)  # Color Background Of available move  
     ├── main.asm                    # main  running file
     │   ├── board peices code  
     │   ├── color code
