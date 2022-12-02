@@ -9,7 +9,8 @@
         .MODEL SMALL
         .STACK 64
         .DATA
-color           db 15, 9
+color           db 15, 9 
+highlightColor  equ 72
 boardWidth      equ 25
 imageWidth      equ 25  
 ; ____ game peice ____ ;
@@ -362,4 +363,7 @@ waitSec     PROC  ;ax = row, cx = col =>>>> ax = current start point
             RET
 ENDP    waitSec
 
+drawBoard       PROC
+                RET
+                ENDP
 END MAIN
