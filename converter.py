@@ -1,17 +1,24 @@
 from PIL import Image
-files = {
-    'Bbishop':[], 
-    'Wbishop':[], 
-    'Bknight':[], 
-    'Wknight':[],
-    'Brook':[],
-    'Wrook':[],
-    'Bqueen':[],
-    'Wqueen':[],
-    'Bking':[],
-    'Wking':[],
-}
-for filename in files.keys():
+files = [
+    'Bpawn',
+    'Wpawn',
+    
+    'Brook',
+    'Wrook',
+    
+    'Bknight', 
+    'Wknight',
+    
+    'Bbishop', 
+    'Wbishop', 
+    
+    'Bqueen',
+    'Wqueen',
+    
+    'Bking',
+    'Wking',
+]
+for filename in files:
     
     im = Image.open("r/" + filename + ".png").convert('LA') ####greyscal, alpha
     pixels = list(im.getdata())
