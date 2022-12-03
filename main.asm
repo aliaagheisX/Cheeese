@@ -367,6 +367,7 @@
                        DB  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
                        DB  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
 
+
 .code
 MAIN PROC FAR
                     MOV      AX, @DATA
@@ -382,7 +383,8 @@ MAIN PROC FAR
         
         
                     DrawGrid boardWidth, color
-             
+                    Available_BackGround 50,highlightColor ,boardWidth
+                    Available_BackGround 100,highlightColor ,boardWidth
                     CALL     DrawBoard
 
 
@@ -390,9 +392,7 @@ MAIN PROC FAR
 
 
                     
-                    
-                    
-
+  
 
         ;__end___;
                     CALL     waitSec
@@ -480,13 +480,6 @@ waitSec PROC                                                   ;ax = row, cx = c
                     ENDP     waitSec
 
 
-Draw_Square PROC
-        
-                    RET
-                    ENDP     Draw_Square
-
-
-
-
 END MAIN
  
+
