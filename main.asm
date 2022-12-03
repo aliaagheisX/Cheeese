@@ -517,11 +517,9 @@ RowColToCell    PROC ;al = row  cl = col  =>> si = CellNumber
 ENDP RowColToCell
 
 RowColToStartPos PROC ;al =row    cl=col   =>di=StartPos
-mov al,2
-mov cl,4
+
 push ax
 push bx
-
 push dx 
 push cx
 mov dl,al      ;dh is now the number of the row
