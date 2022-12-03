@@ -4,6 +4,26 @@
 ;======================
         PUBLIC color, boardWidth, imageWidth,DrawBoard
 ;======================
+
+                ;  0    1    2    3    4    5    6    7        rows
+                ;  0    0    1    2    3    4    5    6    7
+                ;  1    8    ............................ 15
+                ;  2    16   ...............................
+                ;  3    ....................................
+                ;  4    ....................................   
+                ;  5    ....................................
+                ;  6    ....................................
+                ;  7    56..............................  63
+
+                ;       0     1    2    3    4    5    6    7        rows
+                ;  0    0     25   50   75   100  125  150  175
+                ;  1    320   345  370  395  420  445  470  495
+                ;  2    640   .................................
+                ;  3    960   .................................
+                ;  4    1280  .................................  
+                ;  5    1600  .................................
+                ;  6    1920  .................................
+                ;  7    2240  ............................ 2415
         .286
         include graphics.inc
         .MODEL SMALL
@@ -469,7 +489,7 @@ clcWhere PROC                                                  ;ax = row, cx = c
                     pop      dx
                     RET
            
-                    ENDP     clcWhere
+ENDP     clcWhere
 
 waitSec PROC                                                   ;ax = row, cx = col =>>>> ax = current start point
                     push     ax
@@ -479,8 +499,22 @@ waitSec PROC                                                   ;ax = row, cx = c
 
                     pop      ax
                     RET
-                    ENDP     waitSec
+ENDP     waitSec
 
+
+RowColToCell    PROC ;al = row  cl = col  =>> si = CellNumber
+                push ax
+
+                shl al, 3  ; al = al*8
+                add al, cl ; al = al*8 + col
+
+                sub ah, ah
+                mov si, ax
+
+
+                pop ax
+                RET
+ENDP RowColToCell
 
 END MAIN
  
