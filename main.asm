@@ -32,6 +32,7 @@
                        db  4 dup( 8 dup ( emptyCell) )
                        db  8 dup(pawn)
                        db  rook, knight, bishop, queen, king, bishop, knight, rook
+        
 
         Bpawn          DB  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
                        DB  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -400,59 +401,60 @@ MAIN PROC FAR
                     MOV      AH, 4CH
                     INT      21H
 MAIN ENDP
-        ;description
-DrawBlacks PROC
-                    DrawImg  Brook, imageWidth, 56000
-                    DrawImg  BKnight, imageWidth, 56025
-                    DrawImg  Bbishop, imageWidth, 56050
-                    
-                    DrawImg  Bqueen, imageWidth, 56075
-                    DrawImg  BKing, imageWidth, 56100
-                    DrawImg  Bbishop, imageWidth, 56125
-
-                    DrawImg  BKnight, imageWidth, 56150
-                    DrawImg  Brook, imageWidth, 56175
-
-                    DrawImg  Bpawn,imageWidth,47999
-                    DrawImg  Bpawn,imageWidth,48024
-                    DrawImg  Bpawn,imageWidth,48049
-                    DrawImg  Bpawn,imageWidth,48074
-                    DrawImg  Bpawn,imageWidth,48099
-                    DrawImg  Bpawn,imageWidth,48124
-                    DrawImg  Bpawn,imageWidth,48149
-                    DrawImg  Bpawn,imageWidth,48174
-                    ENDP     DrawBlacks
+;_______ inialize board ___________;
 DrawWhites PROC
-
-                    DrawImg  Wrook, imageWidth, 0
-                    DrawImg  WKnight, imageWidth, 25
-                    DrawImg  Wbishop, imageWidth, 50
+                    DrawImg  Wrook, imageWidth, 56000
+                    DrawImg  WKnight, imageWidth, 56025
+                    DrawImg  Wbishop, imageWidth, 56050
                     
-                    DrawImg  Wqueen, imageWidth, 75
-                    DrawImg  WKing, imageWidth, 100
-                    DrawImg  Wbishop, imageWidth, 125
+                    DrawImg  Wqueen, imageWidth, 56075
+                    DrawImg  WKing, imageWidth, 56100
+                    DrawImg  Wbishop, imageWidth, 56125
 
-                    DrawImg  WKnight, imageWidth, 150
-                    DrawImg  Wrook, imageWidth, 175
+                    DrawImg  WKnight, imageWidth, 56150
+                    DrawImg  Wrook, imageWidth, 56175
 
-                    DrawImg  Wpawn,imageWidth,7679
-                    DrawImg  Wpawn,imageWidth,7704
-                    DrawImg  Wpawn,imageWidth,7729
-                    DrawImg  Wpawn,imageWidth,7754
-                    DrawImg  Wpawn,imageWidth,7779
-                    DrawImg  Wpawn,imageWidth,7804
-                    DrawImg  Wpawn,imageWidth,7829
-                    DrawImg  Wpawn,imageWidth,7854
+                    DrawImg  Wpawn,imageWidth,47999
+                    DrawImg  Wpawn,imageWidth,48024
+                    DrawImg  Wpawn,imageWidth,48049
+                    DrawImg  Wpawn,imageWidth,48074
+                    DrawImg  Wpawn,imageWidth,48099
+                    DrawImg  Wpawn,imageWidth,48124
+                    DrawImg  Wpawn,imageWidth,48149
+                    DrawImg  Wpawn,imageWidth,48174
+                    RET
+ENDP     DrawWhites
+DrawBlacks PROC
 
-             
-                    ENDP     DrawWhites
+                    DrawImg  Brook, imageWidth, 0
+                    DrawImg  BKnight, imageWidth, 25
+                    DrawImg  Bbishop, imageWidth, 50
+                    
+                    DrawImg  Bqueen, imageWidth, 75
+                    DrawImg  BKing, imageWidth, 100
+                    DrawImg  Bbishop, imageWidth, 125
 
+                    DrawImg  BKnight, imageWidth, 150
+                    DrawImg  Brook, imageWidth, 175
+
+                    DrawImg  Bpawn,imageWidth,7679
+                    DrawImg  Bpawn,imageWidth,7704
+                    DrawImg  Bpawn,imageWidth,7729
+                    DrawImg  Bpawn,imageWidth,7754
+                    DrawImg  Bpawn,imageWidth,7779
+                    DrawImg  Bpawn,imageWidth,7804
+                    DrawImg  Bpawn,imageWidth,7829
+                    DrawImg  Bpawn,imageWidth,7854
+
+                    RET
+ENDP     DrawBlacks
 
 
 DrawBoard PROC
                     CALL     DrawBlacks
                     CALL     DrawWhites
-                    ENDP     DrawBoard
+                    RET
+ENDP     DrawBoard
 
 
 
