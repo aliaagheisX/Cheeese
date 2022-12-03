@@ -516,6 +516,32 @@ RowColToCell    PROC ;al = row  cl = col  =>> si = CellNumber
                 RET
 ENDP RowColToCell
 
+RowColToStartPos PROC ;al =row    cl=col   =>di=StartPos
+mov al,2
+mov cl,4
+push ax
+push bx
+
+push dx 
+push cx
+mov dl,al      ;dh is now the number of the row
+mov al,25d
+mul cl 
+mov bx,ax        ;bx =25*col
+
+mov ax,320d       ; ax=320*row
+mul dx
+
+mov di,ax
+add  di,bx
+pop cx
+pop dx
+pop bx
+pop ax        
+hlt
+        
+ENDP RowColToStartPos
+
 END MAIN
  
 
