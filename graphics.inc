@@ -1,20 +1,4 @@
-CLRS        MACRO 
-            pusha
-
-            MOV  AX,0600h ;AH=06 to select scroll function
-                          ;AL=00 the entire page
-            MOV  BH,07    ;BH=07 for normal attribute
-            MOV  CX,0000  ;CH=00 row value of start point
-                          ;CL=00 column value of start paint
-            MOV  DX,184fh ;DH=24 row value of ending point
-                          ;DL=79 column value of ending point
-            INT 10H       ;invoke the interrupt
-
-            popa
-ENDM CLRS
-
-DrawGrid    MACRO w, color
-            LOCAL lr, lw, lh
+DrawGrid    MACRO boardWidth, color
             pusha
             mov si, 0
             mov di, 0
@@ -22,7 +6,7 @@ DrawGrid    MACRO w, color
 
 ;___ draw rank by rank ____;
 lr:     push cx 
-        mov cx, w
+        mov cx, boardWidth
         ;___ draw line ____;
         lh: push cx
                 mov cx, 8   
@@ -31,14 +15,14 @@ lr:     push cx
                         push cx
 
                         mov al, color[si];color
-                        mov cx, w        ;width
+                        mov cx, boardWidth   ;width
                         REP STOSB        ;draw a width of square
                         XOR si, 1        ;toggle color for next square
                         
 
                         pop cx
                 loop lw
-                add di, 120
+                add di, 320-8*boardWidth
                 pop cx
         loop lh
         XOR si, 1        ;toggle color for next square
@@ -46,51 +30,43 @@ lr:     push cx
 loop lr
             
             popa
-ENDM DrawGrid
+DrawGrid ENDM
 
 
-DrawImg     MACRO img, imageWidth, startPoint
-            LOCAL lp1, lp2, skip
-            
+
+Available_BackGround    MACRO boardWidth, position
+        pusha                
+                mov cx,boardWidth            ;height
+                mov di, position
+                highlightLoop: push cx
+                        ;draw line 
+                        mov  al, highlightColor      ;Background color of available move
+                        mov  cx, boardWidth          ;width   
+                        REP  STOSB 
+                        sub  di,boardWidth           
+                        add  di,320     
+                        pop cx
+                loop highlightLoop
+        popa
+Available_BackGround ENDM 
+
+
+DrawImg     MACRO ;bx = offset img, di = startPoint
             pusha
-
             mov cx, imageWidth
-            mov di, startPoint
-            lea si, img
-            
-
 lp1:    push cx
         mov cx, imageWidth
-        lp2:    mov al, [si]
+        lp2:    mov al, [bx]
                 cmp al, 4
                 je skip
 
                 mov es:[di], al
 
         skip:   inc di
-                inc si
+                inc bx
         loop    lp2
-        sub di, imageWidth
-        add di, 320
+        add di, 320-imageWidth
         pop cx
 loop lp1
             popa
-ENDM DrawImg
-
-Available_BackGround MAcro startPoint ,highlightColor ,boardWidth 
-        LOCAL lp1
-        pusha                
-        mov cx,boardWidth            ;height
-        mov di,startPoint
-        lp1:
-        push cx
-        ;draw line 
-        mov  al, highlightColor      ;Background color of available move
-        mov  cx, boardWidth          ;wedth   
-        REP  STOSB 
-        sub  di,boardWidth           
-        add  di,320     
-        pop cx
-        loop lp1
-        popa
-ENDM Available_BackGround
+DrawImg ENDM
