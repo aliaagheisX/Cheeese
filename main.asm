@@ -23,7 +23,11 @@
                 ;  5    1600  .................................
                 ;  6    1920  .................................
                 ;  7    2240  ............................ 2415
-        
+        PUBLIC boardWidth, imageWidth, color, board, Bpawn, validateMoves, highlightPeiceMvs
+        EXTRN DrawGrid:FAR
+        EXTRN DrawBoard:FAR
+        EXTRN Available_BackGround:FAR
+        EXTRN DrawHighlightedMvs:FAR
         .286
         .MODEL HUGE
         .STACK 256
@@ -60,6 +64,7 @@
         playerRows  db ?, 0, 7
         playerCols  db ?, 0, 0
         PlayerPos   dw ?, 0, 51520
+        PlayerSelectedPeiceCell  db ?, ?, ?
 
         validateMoves db 64 dup(0)
         ; ____ board ____ ;
@@ -395,149 +400,7 @@ waitSec ENDP
 ;_____________________________;
 ;____________Graphics_________________;
 ;_____________________________;
-DrawGrid    PROC FAR
-            pusha
-            mov si, 0
-            mov di, 0
-            mov cx, 8
 
-;___ draw rank by rank ____;
-lr:     push cx 
-        mov cx, boardWidth
-        ;___ draw line ____;
-        lh: push cx
-                mov cx, 8   
-                ;___ draw square line ___; 
-                lw:
-                        push cx
-
-                        mov al, color[si];color
-                        mov cx, boardWidth   ;width
-                        REP STOSB        ;draw a width of square
-                        XOR si, 1        ;toggle color for next square
-                        
-
-                        pop cx
-                loop lw
-                add di, 320-8*boardWidth
-                pop cx
-        loop lh
-        XOR si, 1        ;toggle color for next square
-        pop cx
-loop lr
-            
-            popa
-            RET
-DrawGrid ENDP 
-
-DrawImg     PROC         ;bx = offset img, di = startPoint
-            pusha
-
-            mov cx, imageWidth
-            
-
-lp1:    push cx
-        mov cx, imageWidth
-        lp2:    mov al, [bx]
-                cmp al, 4
-                je skip
-
-                mov es:[di], al
-
-        skip:   inc di
-                inc bx
-        loop    lp2
-        add di, 320-imageWidth
-        pop cx
-loop lp1
-            popa
-            RET
-DrawImg ENDP 
-
-DrawBoard       PROC    FAR
-                pusha 
-                mov si, 0 ;cell      
-                mov di, 0 ;position
-                mov cx, 8
-        DrawBoardLoop1: push cx
-                        mov cx, 8
-                        DrawBoardLoop2:
-                                lea bx, Bpawn
-                                mov ah, 0
-                                mov al, board[si]
-                                cmp ax, emptyCell
-                                je DONTDRAWIMG
-                                mov dx, ax
-
-                                and ax, 7;peice type
-                                shl ax, 1;2*p
-                                sub ax, 1;2*p-1
-
-                                and dx, 8;peice color
-                                shr dx, 3
-
-                                sub ax, dx;
-
-                                mov dx, boardWidth*boardWidth
-                                mul dx
-                                add bx, ax
-                                CALL DrawImg
-
-                        DONTDRAWIMG:    inc si
-                                        add di, boardWidth
-                        loop DrawBoardLoop2
-                        add di, 320*boardWidth-boardWidth*8
-
-        pop cx
-        loop DrawBoardLoop1
-                popa
-                RET
-DrawBoard       ENDP     
-
-Available_BackGround    PROC ;di = position, al = highlight color
-        pusha                
-                mov cx,boardWidth            ;height
-                highlightLoop: push cx
-                        ;draw line 
-                        mov  cx, boardWidth          ;width   
-                        REP  STOSB 
-                        sub  di,boardWidth           
-                        add  di,320     
-                        pop cx
-                loop highlightLoop
-        popa
-        RET
-Available_BackGround ENDP 
-
-
-DrawHighlightedMvs      PROC    FAR
-                        pusha 
-                        mov si, 0 ;cell      
-                        mov di, 0 ;position
-                        mov cx, 8
-        DrawHIGH1: push cx
-                        mov cx, 8
-                        DrawHIGH2:
-                                mov ah, 0
-                                mov al, validateMoves[si]       ;al = player
-                                cmp al, 1                       ;if zero skip
-                                jl DONTDRAWIMGHIGHT
-
-                                push di
-                                mov di, ax                      ;di = ax = player
-                                mov al, highlightPeiceMvs[di]   ;al = highlightcolor of player
-                                pop di
-                                CALL Available_BackGround       ;
-                        DONTDRAWIMGHIGHT:    inc si
-                                        add di, boardWidth
-                        loop DrawHIGH2
-                        add di, 320*boardWidth-boardWidth*8
-
-        pop cx
-        loop DrawHIGH1
-popa
-RET
-DrawHighlightedMvs      ENDP
 ;________ __________ ___________;
 ;________ __________ ___________;
 ;________ validators ___________;
@@ -640,15 +503,18 @@ SelectValidationOfPeice PROC FAR ;si = player number ;
                         mov ah, 0
                         mov di, ax
 
-                        mov al, playerRows[si]
-                        mov cl, playerCols[si]
-
                         mov dl, board[di]
                         and dl, peice
+                ;_____validation ____;
                 cmp dl, emptyCell
                 jne chkPawn
+                cmp dl, king
+                jle chkPawn
+                
                 RET
-                chkPawn:        cmp dl, pawn
+                chkPawn:        mov playersState[si], playerMoveToChooseAction
+                                mov PlayerSelectedPeiceCell[si], al
+                                cmp dl, pawn
                                 jne chkRook
                                 CALL ValidatePawn
                                 RET
@@ -669,11 +535,55 @@ SelectValidationOfPeice PROC FAR ;si = player number ;
                                 CALL ValidateQueen
                                 RET            
                 chkKing:        cmp dl, king
-                                jne EXITSelecttValidationOfPeice
+                                RET
                                 CALL ValidateKing       
 
-EXITSelecttValidationOfPeice:   RET           
-ENDP    SelectValidationOfPeice
+RET           
+SelectValidationOfPeice ENDP    
+
+CLRHIGHLIGHTMOVES       PROC    FAR     ;si = player number
+                        pusha
+                        mov di, 0
+                        mov ax, si
+                        mov cx, 64
+        clrMoveLabel1:          cmp validateMoves[di], 3
+                                jne nxtCheckcleMoveL1
+                                xor validateMoves[di], al ;if si = 2 => 1 || if si = 1 => 2
+                                jmp EXITclrMoveLabel
+
+        nxtCheckcleMoveL1:      cmp validateMoves[di], al
+                                jne EXITclrMoveLabel
+                                mov validateMoves[di], 0
+
+        EXITclrMoveLabel:       inc di
+                                loop clrMoveLabel1
+                        popa
+                        RET
+CLRHIGHLIGHTMOVES       ENDP 
+
+
+MovePeiceFromTo PROC    FAR ;si = playerNumber
+                pusha
+                mov bx, 0
+                mov bl, playerCells[si] 
+                mov di, bx                 ;di = to cell
+                mov bl, PlayerSelectedPeiceCell[si]     ;bx = from cell
+                ;TODO validate;
+                mov ax, si                                      ;check if validate move
+                and al, validateMoves[di]      
+                ;jnz EXITMVEPEICE
+
+                mov al, board[bx]               ;get peice to move
+                mov board[bx], emptyCell        ;empty fromCell
+                mov board[di], al               ;add peice toCell
+                mov playersState[si], playerMoveToChoosePeice
+                
+EXITMVEPEICE:   popa
+                CALL CLRHIGHLIGHTMOVES
+                RET
+MovePeiceFromTo ENDP
+
+
 
 
 
@@ -741,13 +651,17 @@ MAIN_LOOP:
         pressQ:         cmp al, 'q'
                         jne pressUp
                         cmp playersState[1], playerMoveToChoosePeice
-                        jne pressUp
+                        jne stateLabel1
                         CALL SelectValidationOfPeice
+                        jmp MAIN_LOOP
+        stateLabel1:    cmp playersState[1], playerMoveToChooseAction
+                        jne MAIN_LOOP
+                        CALL MovePeiceFromTo
                         jmp MAIN_LOOP
                         ;_________ highlight moves _____;
 
 
-        pressUp:        mov si, 2
+        pressUp:        mov si, 2       ;check another player
                         cmp ah, 48h
                         jne pressLeft
                         CALL MoveUp
