@@ -73,7 +73,7 @@ loop lp1
             RET
 DrawImg ENDP 
 
-DrawBoard       PROC    FAR
+DrawBoard       PROC  FAR  
                 pusha 
                 mov si, 0 ;cell      
                 mov di, 0 ;position
@@ -113,7 +113,7 @@ DrawBoard       PROC    FAR
                 RET
 DrawBoard       ENDP     
 
-Available_BackGround    PROC FAR;di = position, al = highlight color
+Available_BackGround    PROC  FAR ;di = position, al = highlight color
         pusha                
                 mov cx,boardWidth            ;height
                 highlightLoop: push cx
@@ -129,7 +129,7 @@ Available_BackGround    PROC FAR;di = position, al = highlight color
 Available_BackGround ENDP 
 
 
-DrawHighlightedMvs      PROC    FAR
+DrawHighlightedMvs      PROC  FAR  
                         pusha 
                         mov si, 0 ;cell      
                         mov di, 0 ;position

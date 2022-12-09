@@ -1,0 +1,18 @@
+ {
+  "baseBundle": "<built-in>/TASM.jsdos",
+  "before": [
+      "set PATH=C:\\TASM"
+  ],
+  "run": [
+      "TASM *.asm",
+      "TLINK /v/3 main.obj+graphics.obj",
+      "main",
+      ">${filename}"
+  ],
+  "debug": [
+      "TASM /zi *.asm",
+      "TLINK /v/3 main.obj+graphics.obj",
+      "copy C:\\TASM\\TDC2.TD TDCONFIG.TD",
+      "TD -cTDCONFIG.TD main.exe"
+  ]
+ }
