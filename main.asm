@@ -4,7 +4,7 @@
 ;======================
 ;======================
 
-                ;  0    1    2    3    4    5    6    7        rows
+                ;       0    1    2    3    4    5    6    7        rows
                 ;  0    0    1    2    3    4    5    6    7
                 ;  1    8    ............................ 15
                 ;  2    16   ...............................
@@ -396,6 +396,42 @@ waitSec PROC   FAR                                                ;ax = row, cx 
                     RET
 waitSec ENDP     
 
+GetPlayerColor Proc  ; si = player   ; cl =color
+                push si
+                shr si,3            
+                and si,1   
+                mov ch,0
+                mov cx,si
+                pop si
+ret
+GetPlayerColor Endp
+ispeice Proc  ; si = palyer ; dl = 1 if piece and 0 if not piece
+                push si
+                and si ,peice
+                shl si,5
+                jnz PeiceExist
+                mov dl,0 
+                jmp Ex
+                PeiceExist:
+                mov dl,1
+                Ex:
+                pop si
+ret
+ispeice Endp
+RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
+                push ax
+                push bx
+                mov bl,8
+                mul bl  ; al = al*8
+                add al, cl ; al = al*8 + col
+
+                sub ah, ah
+                mov si, ax
+
+                pop bx
+                pop ax
+                RET
+RowColToCell ENDP 
 
 ;_____________________________;
 ;____________Graphics_________________;
@@ -419,16 +455,295 @@ ValidatePawn    ENDP
 
 
 ValidateRook    Proc ;al = row cl = col si = player di = cell
-                mov ax, si
+                pusha
+                mov al,3 
+                mov cl,5
+                mov di,29
+                push cx
+                push si
+                mov cl,board[di]
+                mov ch,0
+                mov si,cx
+                Call GetPlayerColor  ; bx=color of the player to get its validation pos
+                mov bx,cx  
+                pop si
+                pop cx
+                push ax
+                mov ax,si 
+                mov ch,al
+                pop ax
+                pusha             
+        verticalDown:
+                cmp al,7
+                jz VP
+                inc al
+                add di,8
+                mov dl,board[di]
+                mov dh,0
+                mov si ,dx
+                Call ispeice          ;dl=1 if peice and dl =0 if not peice     
+                cmp dl,0
+                jz Helight
+                push cx
+                Call GetPlayerColor   ; cx=color of the player in this cell
+                cmp cx,bx
+                jnz  NH
+                pop cx
+                jmp Helight
+                NH:
+                pop cx
+                jmp NotHelight
+                Helight:
+                mov validateMoves[di],ch
+                NotHelight:
+                cmp dl,1
+        jnz verticalDown
+                VP:
+                popa
+                pusha
+                
+        verticalUP: 
+                cmp al,0
+                jz  HR
+                dec al
+                sub di,8 
+                mov dl,board[di]
+                mov dh,0
+                mov si ,dx
+                Call ispeice          ;dl=1 if peice and dl =0 if not peice     
+                cmp dl,0
+                jz Helight1
+                push cx
+                Call GetPlayerColor   ; cx=color of the player in this cell
+                cmp cx,bx
+                jnz  NH1
+                pop cx
+                jmp Helight1
+                NH1:
+                pop cx
+                jmp NotHelight1
+                Helight1:
+                mov validateMoves[di],ch
+                NotHelight1:
+                cmp dl,1
+        jnz verticalUP
 
-                mov validateMoves[19], al
+                HR:
+                popa
+                pusha
+
+        HorizontalRight:  
+                cmp cl,7
+                jz HL
+                inc cl
+                add di,1 
+                mov dl,board[di]
+                mov dh,0
+                mov si,dx
+                Call ispeice          ;dl=1 if peice and dl =0 if not peice     
+                cmp dl,0
+                jz Helight2
+                push cx
+                Call GetPlayerColor   ; cx=color of the player in this cell
+                cmp cx,bx
+                jnz  NH2
+                pop cx
+                jmp Helight2
+                NH2:
+                pop cx
+                jmp NotHelight2
+                Helight2:
+                mov validateMoves[di],ch
+                NotHelight2:
+                cmp dl,1
+        jnz HorizontalRight
+
+                HL:
+                popa
+                
+                pusha
+                
+        HorizontalLeft:  
+                cmp cl,0
+                jz  EndValidate
+                dec cl
+                sub di,1
+                mov dl,board[di]
+                mov dh,0
+                mov si ,dx
+                Call ispeice          ;dl=1 if peice and dl =0 if not peice     
+                cmp dl,0
+                jz Helight3
+                push cx
+                Call GetPlayerColor   ; cx=color of the player in this cell
+                cmp cx,bx
+                jnz  NH3
+                pop cx
+                jmp Helight3
+                NH3:
+                pop cx
+                jmp NotHelight3
+                Helight3:
+                mov validateMoves[di],ch
+                NotHelight3:
+                cmp dl,1
+        jnz HorizontalLeft
+                EndValidate:
+                popa
+                popa
                 RET
 ValidateRook    ENDP 
 
 
 ValidateBishop  Proc ;al = row cl = col si = player di = cell
-                mov validateMoves[18], 1
+                pusha
+                mov al,3 
+                mov cl,5
+                mov di,29
+                push cx
+                push si
+                mov cl,board[di]
+                mov ch,0
+                mov si,cx                
+                Call GetPlayerColor  ; bx=color of the player to get its validation pos
+                mov bx,cx  
+                pop si
+                pop cx
+                push ax
+                mov ax,si 
+                mov ch,al
+                pop ax
+                pusha             
+        TopLeft:
+                cmp al,0
+                jz TRt 
+                cmp cl,0
+                jz TRt 
+                dec al 
+                dec cl
+                sub di,9
+                mov dl,board[di]
+                mov dh,0
+                mov si ,dx
+                Call ispeice          ;dl=1 if peice and dl =0 if not peice     
+                cmp dl,0
+                jz HelightBishop
+                push cx
+                Call GetPlayerColor   ; cx=color of the player in this cell
+                cmp cx,bx
+                jnz  NHBishop
+                pop cx
+                jmp HelightBishop
+                NHBishop:
+                pop cx
+                jmp NotHelightBishop
+                HelightBishop:
+                mov validateMoves[di],ch
+                NotHelightBishop:
+                cmp dl,1
+        jnz TopLeft
+                TRt:
+                popa
+                pusha
+                
+        TopRight: 
+                cmp al,0
+                jz  DLt
+                cmp cl,7 
+                jz  DLt
+                dec al
+                inc cl
+                sub di,7 
+                mov dl,board[di]
+                mov dh,0
+                mov si ,dx
+                Call ispeice          ;dl=1 if peice and dl =0 if not peice     
+                cmp dl,0
+                jz HelightBishop1
+                push cx
+                Call GetPlayerColor   ; cx=color of the player in this cell
+                cmp cx,bx
+                jnz  NHBishop1
+                pop cx
+                jmp HelightBishop1
+                NHBishop1:
+                pop cx
+                jmp NotHelightBishop1
+                HelightBishop1:
+                mov validateMoves[di],ch
+                NotHelightBishop1:
+                cmp dl,1
+        jnz TopRight
 
+                DLt:
+                popa
+                pusha
+
+        DownLeft:  
+                cmp cl,0
+                jz DRt
+                cmp al,7
+                jz DRt
+                inc al
+                dec cl
+                add di,7 
+                mov dl,board[di]
+                mov dh,0
+                mov si,dx
+                Call ispeice          ;dl=1 if peice and dl =0 if not peice     
+                cmp dl,0
+                jz HelightBishop2
+                push cx
+                Call GetPlayerColor   ; cx=color of the player in this cell
+                cmp cx,bx
+                jnz  NHBishop2
+                pop cx
+                jmp HelightBishop2
+                NHBishop2:
+                pop cx
+                jmp NotHelightBishop2
+                HelightBishop2:
+                mov validateMoves[di],ch
+                NotHelightBishop2:
+                cmp dl,1
+        jnz DownLeft
+
+                DRt:
+                popa
+                
+                pusha
+                
+        DownRight:  
+                cmp cl,7
+                jz  EndValidateBishop
+                cmp al,7 
+                jz  EndValidateBishop
+                inc cl 
+                inc al
+                add di,9 
+                mov dl,board[di]
+                mov dh,0
+                mov si ,dx
+                Call ispeice          ;dl=1 if peice and dl =0 if not peice     
+                cmp dl,0
+                jz HelightBishop3
+                push cx
+                Call GetPlayerColor   ; cx=color of the player in this cell
+                cmp cx,bx
+                jnz  NHBishop3
+                pop cx
+                jmp HelightBishop3
+                NHBishop3:
+                pop cx
+                jmp NotHelightBishop3
+                HelightBishop3:
+                mov validateMoves[di],ch
+                NotHelightBishop3:
+                cmp dl,1
+        jnz DownRight
+        EndValidateBishop:
+                popa
+                popa
                 RET
 ValidateBishop  ENDP 
 
@@ -502,7 +817,6 @@ SelectValidationOfPeice PROC FAR ;si = player number ;
                         mov al, playerCells[si]; player on which cell
                         mov ah, 0
                         mov di, ax
-
                         mov dl, board[di]
                         and dl, peice
                 ;_____validation ____;
@@ -713,19 +1027,7 @@ MAIN ENDP
 
 
 
-RowColToCell    PROC ;al = row  cl = col  =>> si = CellNumber
-                push ax
 
-                shl al, 3  ; al = al*8
-                add al, cl ; al = al*8 + col
-
-                sub ah, ah
-                mov si, ax
-
-
-                pop ax
-                RET
-RowColToCell ENDP 
 
 RowColToStartPos PROC ;al =row    cl=col   =>di=StartPos
 
@@ -751,9 +1053,6 @@ RowColToStartPos PROC ;al =row    cl=col   =>di=StartPos
         pop ax       
         RET
 RowColToStartPos ENDP 
-
-
-
 
 ;; [move => cell] XOR validateMoves[cell], player
 
