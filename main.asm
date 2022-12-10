@@ -396,7 +396,7 @@ waitSec PROC   FAR                                                ;ax = row, cx 
                     RET
 waitSec ENDP     
 
-GetPlayerColor Proc  ; si = player   ; cl =color
+GetPlayerColor Proc far  ; si = player   ; cl =color
                 push si
                 shr si,3            
                 and si,1   
@@ -456,9 +456,13 @@ ValidatePawn    ENDP
 
 ValidateRook    Proc ;al = row cl = col si = player di = cell
                 pusha
-                mov al,3 
-                mov cl,5
-                mov di,29
+                mov ax, 0
+                mov al, playerCells[si]
+                mov di, ax 
+
+                mov al, playerRows[si] 
+                mov cl, playerCols[si]
+                
                 push cx
                 push si
                 mov cl,board[di]
