@@ -434,11 +434,12 @@ ValidateBishop ENDP
 
 
 ValidateKnight Proc FAR                                                                 ;player 1==>black   ;al = row cl = col si = player di = cell
+                              
                                 
                                    
         ;mov validateMoves[17],1
                                 cmp   al,0                                              ;check up
-                                jnz   checkleft1
+                                jnz   checkmostleft1
                                 cmp   cl,1
                                 jbe   infirstcolumn
                                 mov   validateMoves[di+6],1
@@ -453,22 +454,44 @@ ValidateKnight Proc FAR                                                         
                                
                                 ret
                                 
-        checkleft1:             
+        checkmostleft1:         
                                 cmp   cl,0
-                                jnz   checkright1
+                                jnz   checkleft1
                                 mov   validateMoves[di-6],1                             ;1 rows and 2 column up right
                                 mov   validateMoves[di+10],1                            ; 1 row and 2 coumn down right
                                 mov   validateMoves[di-15],1                            ; 2 rows and 1 column up right
                                 mov   validateMoves[di+17],1                            ; 2 rows and 1 column down right
                                 RET
-        checkright1:            
+        checkleft1:             cmp   cl,1
+                                jnz   checkmostright1
+                                mov   validateMoves[di-6],1                             ;1 rows and 2 column up right
+                                mov   validateMoves[di-17],1                            ;1 row and 2 column up lefft
+                                mov   validateMoves[di+15],1                            ; 2 rows and 1 column down  left
+                                mov   validateMoves[di+10],1                            ; 1 row and 2 coumn down right
+                                mov   validateMoves[di-15],1                            ; 2 rows and 1 column up right
+                                mov   validateMoves[di+17],1                            ; 2 rows and 1 column down right
+                                RET
+
+
+        checkmostright1:        
                                 cmp   cl,07
-                                jnz   checkdown1
+                                jnz   checkright1
                                 mov   validateMoves[di-10],1                            ;1 row and 2 column up left
                                 mov   validateMoves[di+6],1                             ; 1 row and 2 column down left
                                 mov   validateMoves[di-17],1                            ; 2 rows and 1 column up left
                                 mov   validateMoves[di+15],1                            ; 2 rows and 1 column down  left
                                 RET
+        checkright1:            cmp   cl,6
+                                jnz   checkdown1
+                                mov   validateMoves[di-10],1                            ;1 row and 2 column up left
+                                mov   validateMoves[di+6],1                             ; 1 row and 2 column down left
+                                mov   validateMoves[di-17],1                            ; 2 rows and 1 column up left
+                                mov   validateMoves[di+15],1                            ; 2 rows and 1 column down  left
+                                mov   validateMoves[di-15],1                            ; 2 rows and 1 column up left
+                                mov   validateMoves[di+17],1  
+                                RET
+
+
         checkdown1:             
                                 cmp   al,7
                                 jnz   general1
