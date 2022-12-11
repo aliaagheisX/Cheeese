@@ -491,7 +491,7 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 push cx
                 Call GetPlayerColor   ; cx=color of the player in this cell
                 cmp cx,bx
-                jnz  NH
+                jz  NH
                 pop cx
                 jmp Helight
                 NH:
@@ -520,7 +520,7 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 push cx
                 Call GetPlayerColor   ; cx=color of the player in this cell
                 cmp cx,bx
-                jnz  NH1
+                jz  NH1
                 pop cx
                 jmp Helight1
                 NH1:
@@ -550,7 +550,7 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 push cx
                 Call GetPlayerColor   ; cx=color of the player in this cell
                 cmp cx,bx
-                jnz  NH2
+                jz  NH2
                 pop cx
                 jmp Helight2
                 NH2:
@@ -581,7 +581,7 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 push cx
                 Call GetPlayerColor   ; cx=color of the player in this cell
                 cmp cx,bx
-                jnz  NH3
+                jz  NH3
                 pop cx
                 jmp Helight3
                 NH3:
@@ -601,9 +601,9 @@ ValidateRook    ENDP
 
 ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 pusha
-                mov al,3 
-                mov cl,5
-                mov di,29
+                ; mov al,2
+                ; mov cl,5
+                ; mov di,21
                 push cx
                 push si
                 mov cl,board[di]
@@ -635,7 +635,7 @@ ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 push cx
                 Call GetPlayerColor   ; cx=color of the player in this cell
                 cmp cx,bx
-                jnz  NHBishop
+                jz  NHBishop
                 pop cx
                 jmp HelightBishop
                 NHBishop:
@@ -667,7 +667,7 @@ ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 push cx
                 Call GetPlayerColor   ; cx=color of the player in this cell
                 cmp cx,bx
-                jnz  NHBishop1
+                jz  NHBishop1
                 pop cx
                 jmp HelightBishop1
                 NHBishop1:
@@ -700,7 +700,7 @@ ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 push cx
                 Call GetPlayerColor   ; cx=color of the player in this cell
                 cmp cx,bx
-                jnz  NHBishop2
+                jz  NHBishop2
                 pop cx
                 jmp HelightBishop2
                 NHBishop2:
@@ -734,7 +734,7 @@ ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 push cx
                 Call GetPlayerColor   ; cx=color of the player in this cell
                 cmp cx,bx
-                jnz  NHBishop3
+                jz  NHBishop3
                 pop cx
                 jmp HelightBishop3
                 NHBishop3:
