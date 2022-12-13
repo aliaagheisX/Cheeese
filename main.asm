@@ -26,13 +26,13 @@
         PUBLIC boardWidth, imageWidth, color, board, Bpawn, validateMoves, highlightPeiceMvs
         EXTRN DrawGrid:FAR
         EXTRN DrawBoard:FAR
-        EXTRN Available_BackGround:FAR
-        EXTRN DrawHighlightedMvs:FAR
+       ; EXTRN Available_BackGround:FAR
+       ; EXTRN DrawHighlightedMvs:FAR
         .286
         .MODEL HUGE
         .STACK 256
 .DATA
-        color          db  15, 9
+        color          db  31, 9
         highlightColor equ 72
         highlightPeiceMvs db ?, 64, 80
         boardWidth     equ 23
@@ -396,6 +396,94 @@ waitSec PROC   FAR                                                ;ax = row, cx 
                     RET
 waitSec ENDP     
 
+GetRowColGraphicsFromSTPOS PROC FAR ;start pos = di si = col =rem , dx = row =q
+        push ax
+        push bx
+        mov ax, di
+        mov bx, 320
+        mov dx, 0
+        DIV bx ;q = ax, rem = dx
+        mov si, dx
+        mov dx, ax
+        pop bx
+        pop ax
+RET
+ENDP GetRowColGraphicsFromSTPOS
+
+
+Available_BackGround    PROC FAR    ;di = start position, al = highlight color bl=c1, bh=c2
+                      pusha
+
+            mov cx, boardWidth
+            Call GetRowColGraphicsFromSTPOS
+
+lp1:    push cx
+        push si
+        mov cx, boardWidth
+        lp2:    push cx
+                push ax
+
+                mov cx, si
+                MOV ah, 0dh
+                int 10h
+
+                cmp al, bl
+                je highlightMve1
+                cmp al, bh
+                jne skip
+
+
+                highlightMve1:  pop ax
+                                mov es:[di], al
+                                jmp extAA
+
+                
+                skip: pop ax
+                extAA: inc si   ;col
+                inc di
+                pop cx
+       loop lp2
+        add di, 320-boardWidth
+        inc dx
+        pop si
+        pop cx
+loop lp1
+            popa
+            RET
+Available_BackGround ENDP 
+
+
+DrawHighlightedMvs      PROC    FAR
+                        pusha 
+                        mov si, 0 ;cell      
+                        mov di, 0 ;position
+                        mov cx, 8
+        DrawHIGH1: push cx
+                        mov cx, 8
+                        DrawHIGH2:
+                                mov ah, 0
+                                mov al, validateMoves[si]       ;al = player
+                                cmp al, 1                       ;if zero skip
+                                jl DONTDRAWIMGHIGHT
+
+                                push di
+                                mov di, ax                      ;di = ax = player
+                                mov al, highlightPeiceMvs[di]   ;al = highlightcolor of player
+                                pop di
+                                mov bl, color[0]
+                                mov bh, color[1]
+                                CALL Available_BackGround       ;
+                        DONTDRAWIMGHIGHT:    inc si
+                                        add di, boardWidth
+                        loop DrawHIGH2
+                        add di, 320*boardWidth-boardWidth*8
+
+        pop cx
+        loop DrawHIGH1
+popa
+RET
+DrawHighlightedMvs      ENDP
+
 GetPlayerColor Proc far  ; si = player   ; cl =color
                 push si
                 shr si,3            
@@ -405,6 +493,7 @@ GetPlayerColor Proc far  ; si = player   ; cl =color
                 pop si
 ret
 GetPlayerColor Endp
+
 ispeice Proc  ; si = palyer ; dl = 1 if piece and 0 if not piece
                 push si
                 and si ,peice
@@ -418,6 +507,20 @@ ispeice Proc  ; si = palyer ; dl = 1 if piece and 0 if not piece
                 pop si
 ret
 ispeice Endp
+
+
+
+GetCellColor PROC  ;si
+        push bx
+        mov bl, playerCells[si]
+        add bl, playerRows[si]
+        and bl, 1
+        mov bh, 0
+        mov al, color[bx]
+        pop bx
+RET
+ENDP GetCellColor
+
 RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 push ax
                 push bx
@@ -769,13 +872,33 @@ ValidateQueen   ENDP
 ValidateKing    Proc ;al = row cl = col si = player di = cell
                 mov validateMoves[16], 1
                 RET
-ValidateKing    ENDP 
+ValidateKing    ENDP
+ClearSelectedPieceonmove Proc
+ClearSelectedPieceonmove Endp 
 ;_____________________________;
 ;____________MOVEs_________________;
 ;_____________________________;
+CLRPEC  PROC
+        ;___________ clr
+        push bx
+        push si
+                mov bh, highlightColor
+                mov bl, highlightColor
+                CALL GetCellColor 
+
+                add si, si
+                mov di, PlayerPos[si]
+                CALL Available_BackGround
+        ;___________ clr
+        pop si
+        pop bx
+        RET
+CLRPEC  ENDP        
+
 MoveLeft        PROC FAR;si = player numbers
                 cmp PlayerCols[si], 0
                 je EXITMOVELEFT
+                CALL CLRPEC
                 sub playerCols[si], 1
                 sub playerCells[si],  1
                 add si, si
@@ -786,6 +909,7 @@ MoveLeft        ENDP ;si = player numbers
 MoveRight       PROC FAR;si = player numbers
                 cmp playerCols[si], 7
                 je EXITMOVERIGHT
+                CALL CLRPEC
                 add playerCols[si], 1
                 add playerCells[si],  1
 
@@ -798,6 +922,8 @@ MoveRight       ENDP ;si = player numbers
 MoveUp          PROC FAR;si = player numbers
                 cmp playerRows[si], 0
                 je EXITMOVEUP
+                CALL CLRPEC
+                
                 sub playerRows[si], 1
                 sub playerCells[si],  8
                 add si, si
@@ -809,6 +935,8 @@ MoveUp          ENDP ;si = player numbers
 MoveDown        PROC FAR;si = player numbers
                 cmp playerRows[si], 7
                 je EXITMOVEDOWN
+                CALL CLRPEC
+
                 add playerRows[si], 1
                 add playerCells[si],  8
                 add si, si
@@ -921,8 +1049,12 @@ MAIN PROC FAR
 
         ;___ position player1 al =row    cl=col   =>di=StartPos ___;
         
-MAIN_LOOP:
         CALL DrawGrid 
+        CALL     DrawBoard
+
+MAIN_LOOP:
+        mov bh, color[0]
+        mov bl, color[1]
 
 
         mov di, PlayerPos[2]
@@ -935,7 +1067,6 @@ MAIN_LOOP:
 
         CALL DrawHighlightedMvs
 
-        CALL     DrawBoard
 
         mov ah, 01
         int 16h
