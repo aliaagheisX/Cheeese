@@ -1417,7 +1417,7 @@ EXITMVEPEICE:   CALL ClrHighlightedMvs
                 RET
 MovePeiceFromTo ENDP
 
-PrntNumber      PROC ;bh
+PrntNumber      PROC ;bh = cell, dl = col
         pusha
         mov ah,0 
         mov al,bh    ;al = bh
@@ -1426,41 +1426,96 @@ PrntNumber      PROC ;bh
                      ;al= Quo => first digit
         or ax, 3030h ;get ascii
 
-        ;======= set cursor ========;
+        ;======= print min ========;
         pusha
-        mov dh, 10;row
-	mov dl, 20;col
-	mov bh, 0 ;pg number
-	mov ah, 2 ;
-	int 10h   ;set cursor
-        popa
-
-        pusha
-                mov al, 'a'
-                mov ah, 0eh
+                mov bh, 0;pg number
+                mov dh, 24;row
+                mov ah, 2
                 int 10h
         popa
-   
+        inc dl
+        pusha
+                mov ah, 09h
+                mov bh, 0
+                mov bl, 0fh
+                mov cx, 1
+                int 10h
+
+        popa
+
+        ;======= print sec ========;
+        pusha
+                mov bh, 0;pg number
+                mov dh, 24;row
+                mov ah, 2
+                int 10h
+        popa
+        pusha
+                mov al, ah
+                mov ah, 09h
+                mov bh, 0
+                mov bl, 0fh
+                mov cx, 1
+                int 10h
+
+        popa
+
+        
 
 POPA
 RET
 PrntNumber      ENDP
+
 GetCurrTime     PROC    FAR ;
                 pusha
                 mov ah, 2ch ;cl = min, dh = sec
-                int 21h         
+                int 21h      
+                sub dh, startSec;dh - start_sec
+                jnc SubMn1      ;chk if carry
+                add dh, 60      ;if it take 60sec from mins
+                sub cl, 1       ;and add dec one min 
 
-                sub cl, StartMin
-                sub dh, StartSec
+        SubMn1: sub cl, StartMin;else keep going 
+        
 
                 mov ah, GameMin
-                mov bh, GameSec
+                mov al, GameSec
 
+                sub al, dh 
+                jnc SubMn2
+                add al, 60
+                sub ah, 1  ;al = sec
+        SubMn2:
                 sub ah, cl ;ah = min
-                sub bh, dh ;bh = sec
+
+
+                mov bh, ah
+                mov dl, 0
+                CALL PrntNumber
+
+                 ;======= print column ========;
+                pusha
+                        mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov dl, 2
+                        mov ah, 2
+                        int 10h
+                popa
+                pusha
+                        mov al, ':'
+                        mov ah, 09h
+                        mov bh, 0
+                        mov bl, 0fh
+                        mov cx, 1
+                        int 10h
+
+                popa
+
+                mov bh, al
+                mov dl, 3
+                CALL PrntNumber
 
                 ;====== print ========
-                CALL PrntNumber
                 popa
                 REt
 GetCurrTime     ENDP            
