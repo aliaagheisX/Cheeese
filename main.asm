@@ -1419,33 +1419,34 @@ MovePeiceFromTo ENDP
 
 PrntNumber      PROC ;bh
         pusha
+        mov ah,0 
+        mov al,bh    ;al = bh
+        mov bh,10    ;num/10 
+        div bh       ;ah= Rem => second digit 
+                     ;al= Quo => first digit
+        or ax, 3030h ;get ascii
+
+        ;======= set cursor ========;
         pusha
-     mov dx, 0   
-     mov bh, 0   
-     mov ah, 2
-     int 10h
+        mov dh, 10;row
+	mov dl, 20;col
+	mov bh, 0 ;pg number
+	mov ah, 2 ;
+	int 10h   ;set cursor
         popa
-   mov ah,0 
-   mov al,bh    ;
-   mov bh,10    ;num/10 
-   div bh       ;ah=Rem=second dg, al = Qu = fsrt
-   or ax, 3030h ;ascii
 
-   push ax
-   mov dl, al
-   mov ah,02
-   int 21H
-   pop ax
-
-   mov dl, ah
-   mov ah,02
-   int 21H
+        pusha
+                mov al, 'a'
+                mov ah, 0eh
+                int 10h
+        popa
    
 
 POPA
 RET
 PrntNumber      ENDP
 GetCurrTime     PROC    FAR ;
+                pusha
                 mov ah, 2ch ;cl = min, dh = sec
                 int 21h         
 
@@ -1460,7 +1461,7 @@ GetCurrTime     PROC    FAR ;
 
                 ;====== print ========
                 CALL PrntNumber
-
+                popa
                 REt
 GetCurrTime     ENDP            
 
@@ -1483,14 +1484,10 @@ MAIN PROC FAR
         ; ____ inialize video mode ____;
 
         ;___ position player1 al =row    cl=col   =>di=StartPos ___;
-                CALL DrawGrid 
+                
         
         CALL DrawBoard
-       mov al, 4
-        mov di, PlayerPos[2]
-        CALL DrawSquareBord
-        mov di, PlayerPos[4]
-        CALL DrawSquareBord
+        
 
         ;==== t
         mov ah, 2ch
@@ -1498,12 +1495,17 @@ MAIN PROC FAR
         mov StartMin, cl
         mov StartSec, dh
 
-MAIN_LOOP:
-        ;CALL GetCurrTime
+        ;== test     
+        
 
-        mov ah, 01
+        
+
+MAIN_LOOP:
+        CALL GetCurrTime
+
+        mov ah, 1
         int 16h
-        jnz MAIN_LOOP
+        jz MAIN_LOOP
 
         mov ah, 0
         int 16h

@@ -97,7 +97,32 @@ DrawImg     PROC        FAR ;al = peice di = startPoint
         RET
 DrawImg ENDP 
 
+DrawSquareBord PROC    FAR ;di = start position, al = highlight color 
+                pusha
+                ;=========== draw first row ==========;
+                mov cx, boardWidth
+                REP STOSB
+                
+                ;=========== draw columns ==========;
+                add di, 320-boardWidth ;to return di to first col next row
+                mov cx, boardWidth-2   ;number of pixels of one column to draw
+        DWSQ1:  STOSB                  ;draw pixel in first col
+                add di, boardWidth-2   ;update pos for nxt col
+                STOSB                  ;draw pixel in sec col
+                add di, 320-boardWidth ;update di to first col next row
+        loop DWSQ1
+
+
+                ;=========== draw last row ==========;
+                mov cx, boardWidth
+                REP STOSB
+
+        popa
+        RET
+DrawSquareBord ENDP 
+
 DrawBoard       PROC    FAR ;inialize first with all peices
+                CALL DrawGrid 
                 pusha 
                         mov si, 0 ;initial cell      
                         mov di, 0 ;initial position
@@ -126,34 +151,14 @@ DrawBoard       PROC    FAR ;inialize first with all peices
                 pop cx
                 loop DrawBoardLoop1
         popa
-        
+        mov al, 4
+        mov di, PlayerPos[2]
+        CALL DrawSquareBord
+        mov di, PlayerPos[4]
+        CALL DrawSquareBord
         RET
 DrawBoard       ENDP     
 
-
-DrawSquareBord PROC    FAR ;di = start position, al = highlight color 
-                pusha
-                ;=========== draw first row ==========;
-                mov cx, boardWidth
-                REP STOSB
-                
-                ;=========== draw columns ==========;
-                add di, 320-boardWidth ;to return di to first col next row
-                mov cx, boardWidth-2   ;number of pixels of one column to draw
-        DWSQ1:  STOSB                  ;draw pixel in first col
-                add di, boardWidth-2   ;update pos for nxt col
-                STOSB                  ;draw pixel in sec col
-                add di, 320-boardWidth ;update di to first col next row
-        loop DWSQ1
-
-
-                ;=========== draw last row ==========;
-                mov cx, boardWidth
-                REP STOSB
-
-        popa
-        RET
-DrawSquareBord ENDP 
 
 DrawSquare PROC    FAR ;di = start position, al = highlight color 
         pusha
