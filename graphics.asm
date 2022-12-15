@@ -1,4 +1,4 @@
-PUBLIC DrawGrid, DrawBoard, DrawSquareBord, MvePlayerFromGraphics, MvePlayerToGraphics, DrawHighlightedMvs, ClrHighlightedMvs, MvePieceFromGraphics, MvePieceToGraphics
+PUBLIC DrawGrid, DrawBoard, DrawSquareBord, MvePlayerFromGraphics, MvePlayerToGraphics, DrawHighlightedMvs, ClrHighlightedMvs, MvePieceToGraphics, MvePieceFromGraphics
 
 EXTRN color:BYTE
 EXTRN board:BYTE
@@ -126,6 +126,7 @@ DrawBoard       PROC    FAR ;inialize first with all peices
                 pop cx
                 loop DrawBoardLoop1
         popa
+        
         RET
 DrawBoard       ENDP     
 
@@ -169,16 +170,15 @@ DrawSquare PROC    FAR ;di = start position, al = highlight color
         RET
 DrawSquare ENDP 
 
-GetCellColorofPlayer PROC  FAR;di=player number ===> al = color of cell
+GetCellColor PROC  FAR;bl=cell number, bh=row ===> al = color of cell
 push bx
-        mov bl, playerCells[si]
-        add bl, playerRows[si]
+        add bl, bh
         and bl, 1
         mov bh, 0
         mov al, color[bx]
 pop bx
 RET
-ENDP GetCellColorofPlayer
+ENDP GetCellColor
 
 MvePlayerFromGraphics   PROC FAR;si=player number ====> al = color of cell player on, di = player pos
 
@@ -213,43 +213,38 @@ RET
 MvePlayerToGraphics   ENDP
 
 
-MvePieceFromGraphics   PROC FAR;si = player
-                                push bx
+MvePieceFromGraphics    PROC    FAR ;si = playerNumber, bx=cell ===> al = cell color, di = pos **bl = cell
 
-                                mov bh, 0
-                                mov bl, PlayerSelectedCell[si]
-
-                                mov validateMoves[bx], 0        ;for not clear again in ClrHighlight..
-                        ;=========== get color of cell that player stand on =====;
-                                add bl, PlayerSelectedRow[si]   ;bl= row + cell
-                                and bl, 1                       ;if odd => cell color index 1 
-                                mov bh, 0                       ;if even=> cell color index 0
-                                mov al, color[bx]               ;load color
-                        ;=========== get color of cell that player stand on =====;
-                                pop bx
-                                shl si, 1 ;2*si
-                                mov di, PlayerSelectedPos[si]
-
-                                CALL DrawSquare
-                                shr si, 1 ;si/2
+                        mov bl, PlayerSelectedCell[si];bl = cell
+                        mov bh, PlayerSelectedRow[si] ;bh = row
+                        shl si, 1                     ;
+                        mov di, PlayerSelectedPos[si] ;di = position
+                        shr si, 1                     ;
+                        CALL GetCellColor             ;al = cell color
+                        CALL DrawSquare               ;clear cell
+                
 RET
-MvePieceFromGraphics   ENDP
+MvePieceFromGraphics ENDP
 
-MvePieceToGraphics      PROC    FAR;si = player number
-                        push bx
+MvePieceToGraphics      PROC    FAR;si = playerNumber, al = peice =====> di = pos, bx = cell
+                        shl si, 1                       ;
+                        mov di, PlayerPos[si]           ;di = position
+                        shr si, 1                       ;
+
                         mov bh, 0
-                        mov bl, PlayerSelectedCell[si]
-                        mov ah, 0
-                        mov al, board[bx]       ;al = player peice
-                        pop bx
+                        mov bl, playerCells[si]         ;bx = bl = cell
+                        cmp board[bx], emptyCell        ;chk if empty
+                        je  stMvPc                      ;if empty skip clear part
+                        ;START clear square
+                        mov bh, playerRows[si]          ;bh = row
+                        push ax                         ;store al
+                        CALL GetCellColor               ;al = cell color
+                        CALL DrawSquare                 ;clear cell
+                        pop ax                          ;store al = peice
 
-                        shl si, 1
-                        MOV di, PlayerPos[si]   ;di = player pos
-                        shr si, 1
+                        mov bh, 0                       ;bx = cell
+                stMvPc: CALL DrawImg                    ;move peice graphically       
 
-                        CALL DrawImg
-
-                        pop bx
 RET
 MvePieceToGraphics      ENDP
 
@@ -317,5 +312,8 @@ ClrHighlightedMvs      PROC    FAR     ;si = player number
         popa
         RET
 ClrHighlightedMvs      ENDP
+
+
+
 END
 
