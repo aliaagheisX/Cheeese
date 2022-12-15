@@ -8,24 +8,24 @@
                 ;  0    0    1    2    3    4    5    6    7
                 ;  1    8    ............................ 15
                 ;  2    16   ...............................
-                ;  3    ....................................
-                ;  4    ....................................   
-                ;  5    ....................................
-                ;  6    ....................................
+                ;  3    24 ..................................
+                ;  4    32 ..................................   
+                ;  5    40 ..................................
+                ;  6    48 ..................................
                 ;  7    56..............................  63
 
-                ;       0     1    2    3    4    5    6    7        rows
-                ;  0    0     25   50   75   100  125  150  175
-                ;  1    320   345  370  395  420  445  470  495
-                ;  2    640   .................................
-                ;  3    960   .................................
-                ;  4    1280  .................................  
-                ;  5    1600  .................................
-                ;  6    1920  .................................
-                ;  7    2240  ............................ 2415
         PUBLIC boardWidth, imageWidth, color, board, Bpawn, validateMoves, highlightPeiceMvs
+        PUBLIC playerCells, playerCols, playerRows, PlayerPos, highlightColor, PlayerSelectedCell,PlayerSelectedRow, PlayerSelectedPos
         EXTRN DrawGrid:FAR
         EXTRN DrawBoard:FAR
+        EXTRN DrawSquareBord:FAR
+        EXTRN MvePlayerFromGraphics:FAR
+        EXTRN MvePlayerToGraphics:FAR
+        EXTRN DrawHighlightedMvs:FAR
+        EXTRN ClrHighlightedMvs:FAR
+        EXTRN MvePieceFromGraphics:FAR
+        EXTRN MvePieceToGraphics:FAR
+
        ; EXTRN Available_BackGround:FAR
        ; EXTRN DrawHighlightedMvs:FAR
         .286
@@ -64,7 +64,9 @@
         playerRows  db ?, 0, 7
         playerCols  db ?, 0, 0
         PlayerPos   dw ?, 0, 51520
-        PlayerSelectedPeiceCell  db ?, ?, ?
+        PlayerSelectedCell  db ?, ?, ?
+        PlayerSelectedRow  db ?, ?, ?
+        PlayerSelectedPos  dw ?, ?, ?
 
         validateMoves db 64 dup(0)
         ; ____ board ____ ;
@@ -396,93 +398,8 @@ waitSec PROC   FAR                                                ;ax = row, cx 
                     RET
 waitSec ENDP     
 
-GetRowColGraphicsFromSTPOS PROC FAR ;start pos = di si = col =rem , dx = row =q
-        push ax
-        push bx
-        mov ax, di
-        mov bx, 320
-        mov dx, 0
-        DIV bx ;q = ax, rem = dx
-        mov si, dx
-        mov dx, ax
-        pop bx
-        pop ax
-RET
-ENDP GetRowColGraphicsFromSTPOS
 
 
-Available_BackGround    PROC FAR    ;di = start position, al = highlight color bl=c1, bh=c2
-                      pusha
-
-            mov cx, boardWidth
-            Call GetRowColGraphicsFromSTPOS
-
-lp1:    push cx
-        push si
-        mov cx, boardWidth
-        lp2:    push cx
-                push ax
-
-                mov cx, si
-                MOV ah, 0dh
-                int 10h
-
-                cmp al, bl
-                je highlightMve1
-                cmp al, bh
-                jne skip
-
-
-                highlightMve1:  pop ax
-                                mov es:[di], al
-                                jmp extAA
-
-                
-                skip: pop ax
-                extAA: inc si   ;col
-                inc di
-                pop cx
-       loop lp2
-        add di, 320-boardWidth
-        inc dx
-        pop si
-        pop cx
-loop lp1
-            popa
-            RET
-Available_BackGround ENDP 
-
-
-DrawHighlightedMvs      PROC    FAR
-                        pusha 
-                        mov si, 0 ;cell      
-                        mov di, 0 ;position
-                        mov cx, 8
-        DrawHIGH1: push cx
-                        mov cx, 8
-                        DrawHIGH2:
-                                mov ah, 0
-                                mov al, validateMoves[si]       ;al = player
-                                cmp al, 1                       ;if zero skip
-                                jl DONTDRAWIMGHIGHT
-
-                                push di
-                                mov di, ax                      ;di = ax = player
-                                mov al, highlightPeiceMvs[di]   ;al = highlightcolor of player
-                                pop di
-                                mov bl, color[0]
-                                mov bh, color[1]
-                                CALL Available_BackGround       ;
-                        DONTDRAWIMGHIGHT:    inc si
-                                        add di, boardWidth
-                        loop DrawHIGH2
-                        add di, 320*boardWidth-boardWidth*8
-
-        pop cx
-        loop DrawHIGH1
-popa
-RET
-DrawHighlightedMvs      ENDP
 
 GetPlayerColor Proc far  ; si = player   ; cl =color
                 push si
@@ -509,18 +426,6 @@ ret
 ispeice Endp
 
 
-
-GetCellColor PROC  ;si
-        push bx
-        mov bl, playerCells[si]
-        add bl, playerRows[si]
-        and bl, 1
-        mov bh, 0
-        mov al, color[bx]
-        pop bx
-RET
-ENDP GetCellColor
-
 RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 push ax
                 push bx
@@ -536,9 +441,6 @@ RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 RET
 RowColToCell ENDP 
 
-;_____________________________;
-;____________Graphics_________________;
-;_____________________________;
 
 ;________ __________ ___________;
 ;________ __________ ___________;
@@ -878,154 +780,168 @@ ClearSelectedPieceonmove Endp
 ;_____________________________;
 ;____________MOVEs_________________;
 ;_____________________________;
-CLRPEC  PROC
-        ;___________ clr
-        push bx
-        push si
-                mov bh, highlightColor
-                mov bl, highlightColor
-                CALL GetCellColor 
-
-                add si, si
-                mov di, PlayerPos[si]
-                CALL Available_BackGround
-        ;___________ clr
-        pop si
-        pop bx
-        RET
-CLRPEC  ENDP        
 
 MoveLeft        PROC FAR;si = player numbers
-                cmp PlayerCols[si], 0
-                je EXITMOVELEFT
-                CALL CLRPEC
-                sub playerCols[si], 1
-                sub playerCells[si],  1
-                add si, si
-                sub PlayerPos[si], boardWidth
+                cmp PlayerCols[si], 0;check validate move
+                je EXITMOVELEFT      ;exit if not
+
+                CALL MvePlayerFromGraphics ;clear highlight of position (si) => di=position of player
+                
+                sub playerCols[si], 1;update   col
+                sub playerCells[si],1;update   cell
+                                     ;nochange row 
+
+                shl si, 1;si*2                   ;to get from DataWord ? what bytes to add 2*si   
+                sub PlayerPos[si], boardWidth;update player pos
+
+                CALL MvePlayerToGraphics  ;(di = playerPos)
 EXITMOVELEFT:   RET
-MoveLeft        ENDP ;si = player numbers
+MoveLeft        ENDP
 
 MoveRight       PROC FAR;si = player numbers
-                cmp playerCols[si], 7
-                je EXITMOVERIGHT
-                CALL CLRPEC
-                add playerCols[si], 1
-                add playerCells[si],  1
+                cmp playerCols[si], 7;check validate move
+                je EXITMOVERIGHT     ;exit if not
+                
+                CALL MvePlayerFromGraphics ;clear highlight of position (si) => di=position of player
+                
+                add playerCols[si], 1;update   col
+                add playerCells[si],1;update   cell
+                shl si, 1;si*2                      ;to get from DataWord ? what bytes to add 2*si 
+                add PlayerPos[si], boardWidth   ;update player pos
 
-                add si, si
-                add PlayerPos[si], boardWidth
+                CALL MvePlayerToGraphics  ;(di = playerPos)
 EXITMOVERIGHT:  RET
 MoveRight       ENDP ;si = player numbers
 
 
 MoveUp          PROC FAR;si = player numbers
-                cmp playerRows[si], 0
-                je EXITMOVEUP
-                CALL CLRPEC
+                cmp playerRows[si], 0;check validate move
+                je EXITMOVEUP        ;exit if not
                 
-                sub playerRows[si], 1
-                sub playerCells[si],  8
-                add si, si
+                CALL MvePlayerFromGraphics ;clear highlight of position (si) => di=position of player
+
+                sub playerRows[si], 1;update player row
+                sub playerCells[si],8;update player cell
+                                     ;no change     col
+                shl si, 1;si*2
                 sub PlayerPos[si], 320*boardWidth
+
+                CALL MvePlayerToGraphics ;(di = playerPos)
 EXITMOVEUP:     RET
 MoveUp          ENDP ;si = player numbers
 
 
 MoveDown        PROC FAR;si = player numbers
-                cmp playerRows[si], 7
-                je EXITMOVEDOWN
-                CALL CLRPEC
-
-                add playerRows[si], 1
-                add playerCells[si],  8
-                add si, si
+                cmp playerRows[si], 7 ;check validate move
+                je EXITMOVEDOWN       ;exit if not
+                
+                CALL MvePlayerFromGraphics ;clear highlight of position (si) => di=position of player
+                
+                add playerRows[si], 1;update row
+                add playerCells[si],8;update cell
+                                     ;nochange col
+                shl si, 1;si*2
                 add PlayerPos[si], 320*boardWidth
+
+                CALL MvePlayerToGraphics  ;(di = playerPos)
 EXITMOVEDOWN:   RET
 MoveDown        ENDP ;si = player numbers
 
 
-SelectValidationOfPeice PROC FAR ;si = player number ;
-                        mov al, playerCells[si]; player on which cell
-                        mov ah, 0
-                        mov di, ax
-                        mov dl, board[di]
-                        and dl, peice
-                ;_____validation ____;
-                cmp dl, emptyCell
-                jne chkPawn
-                cmp dl, king
-                jle chkPawn
-                
-                RET
-                chkPawn:        mov playersState[si], playerMoveToChooseAction
-                                mov PlayerSelectedPeiceCell[si], al
-                                cmp dl, pawn
-                                jne chkRook
-                                CALL ValidatePawn
-                                RET
-                chkRook:        cmp dl, rook
-                                jne chkKnight
-                                CALL ValidateRook
-                                RET     
-                chkKnight:      cmp dl, knight
-                                jne chkBishop
-                                CALL ValidateKnight
-                                RET             
-                chkBishop:      cmp dl, bishop
-                                jne chkQueen
-                                CALL ValidateBishop
-                                RET             
-                chkQueen:       cmp dl, queen
-                                jne chkKing
-                                CALL ValidateQueen
-                                RET            
-                chkKing:        cmp dl, king
-                                RET
-                                CALL ValidateKing       
+SelectValidationOfPeice PROC FAR;si = player number ;
+                                ;====== inialize ===;
+                                mov   ah, 0
+                                mov   al, playerCells[si] ; ax = playerCell
+                                mov   di, ax              ; di = playerCell
+                                mov   dl, board[di]       ; dl = peiceType                         
+                                and   dl, peice         
 
-RET           
-SelectValidationOfPeice ENDP    
+                                
+                                ;======= validation ======;
+                                cmp   dl, emptyCell     ;check peice if empty
+                                jne   chkPeiceColorVLD  ;if not => check peice color
+                                RET                     ;if empty => end function
 
-CLRHIGHLIGHTMOVES       PROC    FAR     ;si = player number
-                        pusha
-                        mov di, 0
-                        mov ax, si
-                        mov cx, 64
-        clrMoveLabel1:          cmp validateMoves[di], 3
-                                jne nxtCheckcleMoveL1
-                                xor validateMoves[di], al ;if si = 2 => 1 || if si = 1 => 2
-                                jmp EXITclrMoveLabel
+        chkPeiceColorVLD:       mov   bl, board[di]     ;bl = peice color                   
+                                mov   bh, 0             ;bl = peice color
+                                and   bl, black         ;bl = peice color
+                                push si                 ;store si = [player number]
+                                AND SI,1                ;get if player1 or not
+                                SHL SI,3                ;if player1 **let si = 8** corresponding to peice color 
+                                CMP bx, si              ;compare peice color with si
+                                pop si                  ;**restore si for not forgetten
+                                je ValidSelectPeice     ;if color peice valid choose correct validaton
+                                RET                     ;else end function
+ 
+                                ;======= validation ======;
+        ValidSelectPeice:       mov   playersState[si], playerMoveToChooseAction;update state
+                                ;======== store data for later use in ** move peice =========;
+                                mov   PlayerSelectedCell[si], al    
 
-        nxtCheckcleMoveL1:      cmp validateMoves[di], al
-                                jne EXITclrMoveLabel
-                                mov validateMoves[di], 0
+                                mov   al, playerRows[si]       
+                                mov   PlayerSelectedRow[si], al  
 
-        EXITclrMoveLabel:       inc di
-                                loop clrMoveLabel1
-                        popa
-                        RET
-CLRHIGHLIGHTMOVES       ENDP 
+                                shl   si, 1 
+                                mov   ax, playerPos[si]           
+                                mov   PlayerSelectedPos[si], ax           
+                                shr si, 1 
+                                ;======== store data for later use in ** move peice =========;
+
+        chkPawn:                cmp   dl, pawn          ;chk peice
+                                jne   chkRook           ;if not jump to next peice
+                                CALL  ValidatePawn      ;else call proper function
+                                jmp   exitSelectValidate;and jmp to the end of function
+        chkRook:                cmp   dl, rook          ;chk peice
+                                jne   chkKnight
+                                CALL  ValidateRook
+                                jmp   exitSelectValidate;and jmp to the end of function
+        chkKnight:              cmp   dl, knight        ;chk peice
+                                jne   chkBishop
+                                CALL  ValidateKnight
+                                jmp   exitSelectValidate;and jmp to the end of function
+        chkBishop:              cmp   dl, bishop        ;chk peice
+                                jne   chkQueen
+                                CALL  ValidateBishop
+                                jmp   exitSelectValidate;and jmp to the end of function
+        chkQueen:               cmp   dl, queen         ;chk peice
+                                jne   chkKing
+                                CALL  ValidateQueen
+                                jmp   exitSelectValidate;and jmp to the end of function
+
+        chkKing:                CALL  ValidateKing      ;if no other then chk king
+exitSelectValidate:
+                                ;======== update graphics **highlight available moves =========;
+                                CALL DrawHighlightedMvs
+RET
+SelectValidationOfPeice ENDP
 
 
 MovePeiceFromTo PROC    FAR ;si = playerNumber
                 pusha
-                mov bx, 0
-                mov bl, playerCells[si] 
-                mov di, bx                 ;di = to cell
-                mov bl, PlayerSelectedPeiceCell[si]     ;bx = from cell
+                mov bl, playerCells[si]     ;bx = go to PeiceCell
+                mov ah, 0                   ;    
+                mov al, validateMoves[bx]   ;get valid state of cell
+                cmp ax, si                  ;chk if one of valid moves of player
+                jne EXITMVEPEICE            ;if not => exit
+
+                CALL MvePieceFromGraphics ;handel graphics
+                CALL MvePieceToGraphics ;else clear
+                ;;mov bx, 0
+                ;;mov bl, playerCells[si] 
+                ;;mov di, bx                 ;di = to cell
+                ;mov bl, PlayerSelectedPeiceCell[si]     ;bx = from cell
                 ;TODO validate;
-                mov ax, si                                      ;check if validate move
-                and al, validateMoves[di]      
+                ;mov ax, si                                      ;check if validate move
+                ;and al, validateMoves[di]      
                 ;jnz EXITMVEPEICE
 
-                mov al, board[bx]               ;get peice to move
-                mov board[bx], emptyCell        ;empty fromCell
-                mov board[di], al               ;add peice toCell
+               ; mov al, board[bx]               ;get peice to move
+               ; mov board[bx], emptyCell        ;empty fromCell
+               ; mov board[di], al               ;add peice toCell
                 mov playersState[si], playerMoveToChoosePeice
                 
+                CALL ClrHighlightedMvs
 EXITMVEPEICE:   popa
-                CALL CLRHIGHLIGHTMOVES
                 RET
 MovePeiceFromTo ENDP
 
@@ -1050,23 +966,14 @@ MAIN PROC FAR
         ;___ position player1 al =row    cl=col   =>di=StartPos ___;
         
         CALL DrawGrid 
-        CALL     DrawBoard
+        CALL DrawBoard
+        mov al, 4
+        mov di, PlayerPos[2]
+        CALL DrawSquareBord
+        mov di, PlayerPos[4]
+        CALL DrawSquareBord
 
 MAIN_LOOP:
-        mov bh, color[0]
-        mov bl, color[1]
-
-
-        mov di, PlayerPos[2]
-        mov al, highlightColor
-        CALL Available_BackGround
-        
-        mov di, PlayerPos[4]
-        mov al, highlightColor
-        CALL Available_BackGround
-
-        CALL DrawHighlightedMvs
-
 
         mov ah, 01
         int 16h
