@@ -191,7 +191,7 @@ MvePlayerFromGraphics   PROC FAR;si=player number ====> al = color of cell playe
                                 mov bl, playerCells[si] ;bl = playerCell
                                 cmp validateMoves[bx], 1;chk if one of valid moves
                                 jl clearSquare          ;if not => clearSquare=> get color of cell
-                                mov al, 72              ;else al = highligh move color
+                                mov al, 0              ;else al = highligh move color
                                 jmp startMvePlayerFrom  ;and start draing
 
                         ;=========== get color of cell that player stand on =====;
@@ -267,7 +267,7 @@ DrawHighlightedMvs      PROC    FAR     ;si = player number
                                 mov al, validateMoves[bx]        ;al = valid move state of cell
                                 cmp ax, si                       ;check that's one of player valid mvs
                                 jne DontDrawMve                  ;if not skip
-                                mov al, 72          ;al = highlightcolor
+                                mov al, 0          ;al = highlightcolor
                                 CALL DrawSquareBord            ;Draw
 
                         DontDrawMve:    inc bx                  ;update cell number
