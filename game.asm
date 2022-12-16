@@ -518,7 +518,7 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                 POPA
                 RET
         PaP2:
-                PwnMv12: cmp playerRows[si], 6           ;up twice in first move
+                PwnMv12: cmp playerRows[si], 6          ;up twice in first move
                         jne PwnMv22
                         mov al, board[di-16]
                         cmp al, emptyCell
@@ -530,8 +530,8 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                         jne PwnMv32
                         mov validateMoves[di-8], dl
 
-                PwnMv32: ;left down
-                        cmp PlayerCols[si], 7
+                PwnMv32: ;down -> left
+                        cmp PlayerCols[si], 0
                         je PwnMv42
                         mov al, board[di-9]
                         cmp al, emptyCell
@@ -541,7 +541,7 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                         jne PwnMv42
                         mov validateMoves[di-9], dl
                 PwnMv42: ;right down
-                        cmp PlayerCols[si], 0
+                        cmp PlayerCols[si], 7
                         mov al, board[di-7]
                         cmp al, emptyCell
                         je EXITPP2
