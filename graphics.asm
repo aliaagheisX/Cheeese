@@ -1,4 +1,6 @@
-PUBLIC DrawGrid, DrawBoard, DrawSquareBord, MvePlayerFromGraphics, MvePlayerToGraphics, DrawHighlightedMvs, ClrHighlightedMvs, MvePieceToGraphics, MvePieceFromGraphics
+PUBLIC DrawBoard, DrawSquareBord, MvePlayerFromGraphics 
+PUBLIC DrawHighlightedMvs, ClrHighlightedMvs, MvePieceToGraphics, MvePieceFromGraphics
+PUBLIC DrawPlayers
 
 EXTRN color:BYTE
 EXTRN board:BYTE
@@ -159,6 +161,20 @@ DrawBoard       PROC    FAR ;inialize first with all peices
         RET
 DrawBoard       ENDP     
 
+DrawPlayers     PROC    FAR
+                push ax
+                push di
+                
+                mov al, 4
+                mov di, PlayerPos[2]
+                CALL DrawSquareBord
+                mov di, PlayerPos[4]
+                CALL DrawSquareBord
+
+                pop di
+                pop ax
+                RET
+DrawPlayers     ENDP
 
 DrawSquare PROC    FAR ;di = start position, al = highlight color 
         pusha
@@ -208,14 +224,6 @@ MvePlayerFromGraphics   PROC FAR;si=player number ====> al = color of cell playe
 RET
 MvePlayerFromGraphics   ENDP
 
-MvePlayerToGraphics     PROC FAR ;si = player number
-
-                        mov al, 4
-                        mov di, playerPos[si]
-                        CALL DrawSquareBord
-
-RET
-MvePlayerToGraphics   ENDP
 
 
 MvePieceFromGraphics    PROC    FAR ;si = playerNumber, bx=cell ===> al = cell color, di = pos **bl = cell
@@ -248,8 +256,7 @@ MvePieceToGraphics      PROC    FAR;si = playerNumber, al = peice =====> di = po
                         pop ax                          ;store al = peice
 
                         mov bh, 0                       ;bx = cell
-                stMvPc: CALL DrawImg                    ;move peice graphically       
-
+                stMvPc: CALL DrawImg                    ;move peice graphically      
 RET
 MvePieceToGraphics      ENDP
 
@@ -314,6 +321,8 @@ ClrHighlightedMvs      PROC    FAR     ;si = player number
                         xor dx, 1                               ;toggle cell color
                         pop cx
                         loop ClrHIGH1
+                        ;======== return player cells ======;
+                        CALL DrawPlayers
         popa
         RET
 ClrHighlightedMvs      ENDP

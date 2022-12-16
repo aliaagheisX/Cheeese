@@ -21,11 +21,11 @@
         EXTRN DrawBoard:FAR
         EXTRN DrawSquareBord:FAR
         EXTRN MvePlayerFromGraphics:FAR
-        EXTRN MvePlayerToGraphics:FAR
         EXTRN DrawHighlightedMvs:FAR
         EXTRN ClrHighlightedMvs:FAR
         EXTRN MvePieceToGraphics:FAR
         EXTRN MvePieceFromGraphics:FAR
+        EXTRN DrawPlayers:FAR
         
         .286
         .MODEL HUGE
@@ -1105,7 +1105,7 @@ MoveLeft        PROC FAR;si = player numbers
                 shl si, 1;si*2                   ;to get from DataWord ? what bytes to add 2*si   
                 sub PlayerPos[si], boardWidth;update player pos
 
-                CALL MvePlayerToGraphics  ;(di = playerPos)
+                CALL DrawPlayers  ;(di = playerPos)
 EXITMOVELEFT:   RET
 MoveLeft        ENDP
 
@@ -1120,7 +1120,7 @@ MoveRight       PROC FAR;si = player numbers
                 shl si, 1;si*2                      ;to get from DataWord ? what bytes to add 2*si 
                 add PlayerPos[si], boardWidth   ;update player pos
 
-                CALL MvePlayerToGraphics  ;(di = playerPos)
+                CALL DrawPlayers  ;(di = playerPos)
 EXITMOVERIGHT:  RET
 MoveRight       ENDP ;si = player numbers
 
@@ -1137,7 +1137,7 @@ MoveUp          PROC FAR;si = player numbers
                 shl si, 1;si*2
                 sub PlayerPos[si], 320*boardWidth
 
-                CALL MvePlayerToGraphics ;(di = playerPos)
+                CALL DrawPlayers ;(di = playerPos)
 EXITMOVEUP:     RET
 MoveUp          ENDP ;si = player numbers
 
@@ -1154,11 +1154,51 @@ MoveDown        PROC FAR;si = player numbers
                 shl si, 1;si*2
                 add PlayerPos[si], 320*boardWidth
 
-                CALL MvePlayerToGraphics  ;(di = playerPos)
+                CALL DrawPlayers  ;(di = playerPos)
 EXITMOVEDOWN:   RET
 MoveDown        ENDP ;si = player numbers
 
 ;================== GAme Logic ================;
+ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't move]
+                push    ax
+                push    dx
+                        cmp peiceTimer[bx], 0   ;check if never move
+                        je STime                ;if yes return Succes
+
+                        mov ah, 2ch ;cl = min, dh = sec
+                        int 21h  
+
+                        mov ax, peiceTimer[bx]  ;ax =  peice time [ah = min, al = sec]
+                        cmp cl, ah              ;check if curr min > peice stop min
+                        ja STime                ;if (Curr min) > (Stop min) succ & leave
+                                                ;else check min
+                        sub dh, 3               ;dh = CurrSec - 3 
+                        cmp dh, al              ;chk CurrSec-3 >= Stop sec
+                        jae STime                ;if true succ & leave
+                        mov cx,0                ;else set cx=0 & leave
+                        pop dx
+                        pop ax
+                        RET 
+
+        STime:  mov cx, 1
+                pop dx
+                pop ax
+                RET
+ChKTime         ENDP
+
+SetTime         PROC    FAR     ;board cell = bx
+                pusha
+
+                mov ah, 2ch ;cl = min, dh = sec
+                int 21h      
+
+                mov ch, cl;ch = min
+                mov cl,  dh;cl = sec
+                mov peiceTimer[bx], cx;update
+
+                popa
+                RET
+SetTime         ENDP
 
 SelectValidationOfPeice PROC FAR;si = player number ;
                                 ;====== inialize ===;
@@ -1174,6 +1214,8 @@ SelectValidationOfPeice PROC FAR;si = player number ;
                                 jne   chkPeiceColorVLD  ;if not => check peice color
                                 RET                     ;if empty => end function
 
+                                
+
         chkPeiceColorVLD:       mov   bl, board[di]     ;bl = peice color                   
                                 mov   bh, 0             ;bl = peice color
                                 and   bl, black         ;bl = peice color
@@ -1182,10 +1224,17 @@ SelectValidationOfPeice PROC FAR;si = player number ;
                                 SHL SI,3                ;if player1 **let si = 8** corresponding to peice color 
                                 CMP bx, si              ;compare peice color with si
                                 pop si                  ;**restore si for not forgetten
-                                je ValidSelectPeice     ;if color peice valid choose correct validaton
+                                je ChkTimePeice         ;if color peice valid => check valid time state
                                 RET                     ;else end function
- 
+
+        ChkTimePeice:           mov bx, di              ;bx = cell number             
+                                Call ChKTime            ;(bx = cell number) => cx=is valid time state(1,0)
+                                cmp cx, 1               ;chk time state
+                                je ValidSelectPeice     ;if okay select valid state
+                                RET                     ;else exit
                                 ;======= validation ======;
+
+
         ValidSelectPeice:       mov   playersState[si], playerMoveToChooseAction;update state
                                 ;======== store data for later use in ** move peice =========;
                                 mov   PlayerSelectedCell[si], al    
@@ -1228,41 +1277,11 @@ RET
 SelectValidationOfPeice ENDP
 
 
-ChKTime         PROC    FAR     ;board cell = bx
-                push ax
-
-                mov ah, 2ch ;cl = min, dh = sec
-                int 21h  
-                mov ax, peiceTimer[bx]
-
-
-                pop ax
-                RET
-ChKTime         ENDP
-
-SetTime         PROC    FAR     ;board cell = bx
-                pusha
-
-                mov ah, 2ch ;cl = min, dh = sec
-                int 21h      
-                mov ch, cl;ch = min
-                mov cl,  dh
-                mov peiceTimer[bx], cx
-
-                popa
-                RET
-SetTime         ENDP
 
 MovePeiceFromTo PROC    FAR ;si = playerNumber
                 pusha
+                ;=========== check if move validate =========;
                 mov bh, 0
-
-                mov bl, PlayerSelectedCell[si];peice position
-                mov bl, board[bx]             ;get peice
-                shr bl, 4                     ;get clock state
-                cmp bl, 0                     ;chk clock state = zero
-                jne EXITMVEPEICE              ;if not zero => end function 
-                
                 mov bl, playerCells[si]     ;bx = player cell
                 mov ax, si                  ;get valid state of cell
                 cmp validateMoves[bx], al   ;chk if one of valid moves of player
@@ -1273,6 +1292,7 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 CALL MvePieceFromGraphics     ;out==>bl = cell
                 ;== Logically
                 mov bh, 0
+                mov peiceTimer[bx], 0         ;return time state of cell
                 mov al, board[bx]             ;*********** al = peice that should move
                 mov board[bx], emptyCell      ;set empty cell
                 
@@ -1291,6 +1311,7 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 ;== Graphically
         skpPwn: CALL MvePieceToGraphics      ;out ===> bx = cell
                 ;== Logically
+                CALL SetTime                    ;(bx = cell) => peiceTime[bx] = curr time
                 mov dl, board[bx]               ;get peice type that killed
                 and dl, peice
                 cmp dl, king                    ;chk if king
@@ -1313,6 +1334,8 @@ EXITMVEPEICE:   CALL ClrHighlightedMvs
                 popa
                 RET
 MovePeiceFromTo ENDP
+
+;================= timer =====================;
 
 PrntNumber      PROC ;bh = cell, dl = col
         pusha
