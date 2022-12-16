@@ -26,7 +26,6 @@
         EXTRN MvePieceToGraphics:FAR
         EXTRN MvePieceFromGraphics:FAR
         EXTRN DrawPlayers:FAR
-        
         .286
         .MODEL HUGE
         .STACK 256
@@ -37,7 +36,7 @@
         boardWidth     equ 23
         imageWidth     equ 23
         ; ____ game time _____ ;
-        GameMin        equ 5
+        GameMin        equ 1
         GameSec        equ 0
 
         StartMin        db ?
@@ -55,8 +54,7 @@
         white          equ 0
         ; ____ peice mask ____ ;
         peice          equ 7
-        ;______pawn directions_____;
-        pawnDir         db ?, +8, -8
+        
         ;____ players _____;
         player1         equ 1
         player2         equ 2
@@ -66,8 +64,8 @@
         PlayerWin equ 3
         PlayerEndedGame equ 4
 
+        isGameEnded db 0
         playersState db ?, playerMoveToChoosePeice, playerMoveToChoosePeice
-
         playerCells db ?, 0, 56
         playerRows  db ?, 0, 7
         playerCols  db ?, 0, 0
@@ -398,6 +396,72 @@ Wking DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
 .code
 
 
+EndGameState    PROC FAR
+
+                
+;========= inialize board =========;
+                mov cx, 64      ;clear board
+                mov si, 0
+inializeBoard:  mov board[si], 0
+                mov peiceTimer[si], 0
+                mov validateMoves[si], 0
+                inc si
+                loop inializeBoard
+
+                mov board[0], black+rook
+                mov board[1], black+knight
+                mov board[2], black+bishop
+                mov board[3], queen+black
+                mov board[4], king+black
+                mov board[5], bishop+black
+                mov board[6], knight+black
+                mov board[7], rook+black
+
+                mov board[8], black+pawn
+                mov board[9], black+pawn
+                mov board[10], black+pawn
+                mov board[11], black+pawn
+                mov board[12], black+pawn
+                mov board[13], black+pawn
+                mov board[14], black+pawn
+                mov board[15], black+pawn
+
+                mov board[48], pawn
+                mov board[49], pawn
+                mov board[50], pawn
+                mov board[51], pawn
+                mov board[52], pawn
+                mov board[53], pawn
+                mov board[54], pawn
+                mov board[55], pawn
+                ;
+                mov board[56], rook
+                mov board[57], knight
+                mov board[58], bishop
+                mov board[59], queen
+                mov board[60], king
+                mov board[61], bishop
+                mov board[62], knight
+                mov board[63], rook
+;============= in
+                mov isGameEnded, 0
+                mov playersState[1], playerMoveToChoosePeice
+                mov playersState[2], playerMoveToChoosePeice
+
+                mov playerCells[1], 0
+                mov playerCells[2], 56
+
+                mov playerRows[1], 0
+                mov playerRows[2], 7
+
+                mov playerCols[1], 0
+                mov playerCols[2], 0
+
+                mov PlayerPos[2], 0
+                mov PlayerPos[4], 51520
+                
+        RET
+EndGameState    ENDP
 
 RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 push ax
@@ -413,6 +477,7 @@ RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 pop ax
                 RET
 RowColToCell ENDP 
+
 
 
 ;________ __________ ___________;
@@ -1321,6 +1386,7 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 xor si, 3           ; to toggle the player number to change states
                 mov playersState[si], PlayerLose
                 xor si, 3           ;to return the number of the player again
+                mov isGameEnded, 1
                  
 
         skipKingDead:        mov board[bx], al
@@ -1402,6 +1468,7 @@ GetCurrTime     PROC    FAR ;
                 jl  ContG      ;if not ended continue
                 mov playersState[player1], PlayerLose
                 mov playersState[player2], PlayerLose
+                mov isGameEnded, 1
                 popa
                 RET
         ContG:  mov ah, GameMin
@@ -1453,40 +1520,27 @@ StartGame PROC FAR
         ; ____ inialize video mode ____;
         mov      ax, 0a000h                        ;for inline drawing
         mov      es, ax
-
         mov ax, 0003h                                  ; clear screen
         int 10H
-
         mov      ax, 0013h                         ; to video mode
         int      10h
         ; ____ inialize video mode ____;
-
-        ;___ position player1 al =row    cl=col   =>di=StartPos ___;
-                
         
-        CALL DrawBoard
-        
+        CALL DrawBoard                          ;inialize draw board
 
-        ;==== t
+        ;==== inialize timer
         mov ah, 2ch
         int 21h
         mov StartMin, cl
         mov StartSec, dh
-
-        ;== test     
-        
-
-        
-
 MAIN_LOOP:
-        ;================= TODO ================;
-        mov al, playersState[0]
-        cmp playersState[0], PlayerLose
-        cmp playersState[0], PlayerWin
-        ;contain validation of end game
-        ;================= TODO ================;
-
-        CALL GetCurrTime
+        ;================= Chk if ended ================;
+        cmp isGameEnded, 1
+        jne ContGame
+        CALL EndGameState
+        RET
+        ;================= Continue Game ================;
+ContGame: CALL GetCurrTime
 
         mov ah, 1
         int 16h
@@ -1563,6 +1617,7 @@ MAIN_LOOP:
         MainEndGame:            cmp ah,3Eh      ;chk if clik f4
                                 jne shrt2
                                 mov playersState[1], PlayerEndedGame
+                                mov isGameEnded, 1
 
         jmp shrt2
 StartGame ENDP

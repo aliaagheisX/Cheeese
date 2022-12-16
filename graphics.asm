@@ -19,10 +19,23 @@ EXTRN PlayerSelectedRow:BYTE
 .286
 .MODEL SMALL
 .data
+        ;------- peices -----------;
+        emptyCell      equ 0
+        pawn           equ 1
+        rook           equ 2
+        knight         equ 3
+        bishop         equ 4
+        queen          equ 5
+        king           equ 6
+        ;-------- peice colors -----;
+        black          equ 8
+        white          equ 0
+
         boardWidth     equ 23
         imageWidth     equ 23
         emptyCell     equ 0
 .CODE
+
 
 DrawGrid    PROC FAR
             pusha
@@ -125,6 +138,8 @@ DrawSquareBord ENDP
 
 DrawBoard       PROC    FAR ;inialize first with all peices
                 CALL DrawGrid 
+                
+
                 pusha 
                         mov si, 0 ;initial cell      
                         mov di, 0 ;initial position

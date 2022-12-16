@@ -63,7 +63,10 @@ MAIN    PROC FAR
                 jne chkE
                 ;CALL StartGame
         chkE:   cmp ah, 1h
+                jne MnLoop
                 CALL StartGame
+                mov ax, 0003h                                  ; clear screen
+                int 10H
             
         jmp MnLoop
         ;
