@@ -31,6 +31,7 @@
 waitSec PROC   FAR                                                ;ax = row, cx = col =>>>> ax = current start point
                     push     ax
 
+
                     mov      ah, 07
                     int      21h
 

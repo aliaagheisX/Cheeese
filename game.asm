@@ -30,15 +30,18 @@
         .MODEL HUGE
         .STACK 256
 .DATA
+
+
+;__________Peices________;
+
         color          db  31, 9
         highlightColor equ 72
         highlightPeiceMvs db ?, 64, 80
         boardWidth     equ 23
         imageWidth     equ 23
         ; ____ game time _____ ;
-        GameMin        equ 1
+        GameMin        equ 3
         GameSec        equ 0
-
         StartMin        db ?
         StartSec        db ?
         ; ____ game peice ____ ;
@@ -82,6 +85,11 @@
                        db  8 dup(pawn)
                        db  rook, knight, bishop, queen, king, bishop, knight, rook
         peiceTimer     dw  64 dup(0)
+        ; _____Important Position ______;
+        WKingpos db 7,5,60
+        BKingpos db 3 dup(?)
+        WkingCheck db ?
+        checkmes db "there  is check$"
 
 Bpawn DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 
  DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -1250,7 +1258,98 @@ ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't
                 pop ax
                 RET
 ChKTime         ENDP
+;========================Check============================
+ ;Check if white king is ungarded from one side
+ChkWhiteKing PROC
+        pusha
+        mov al,WKingpos    ;al=row
+        mov cl,WKingpos[1] ;cl=col
+        mov bl,WKingpos[2]
+        mov bh,0
+        mov di,bx
+        ;___ Check if ungaurded from black pawns _____;
+        cmp al,0
+        jz Check_Knight
+        mov bl,al
+        inc bl
+        mov bh,cl
+        chkLSide:
+        cmp cl,0
+        jz chkRSide
+        dec bh
+        mov dl,pawn+black
+        cmp board[di-9],dl
+        jnz chkRSide
+        mov WkingCheck,1
+        jmp exit_check
+        chkRSide:
+        cmp cl,7
+        jz Check_Knight
+        mov bh,cl 
+        mov bl,al
+        mov dl,pawn+black
+        cmp board[di-7],dl
+        jnz Check_Knight
+        mov WkingCheck,1
+        jmp exit_check
+        ;___ Check if ungaurded from black Knight _____;
+        Check_Knight:
+        mov bl,al
+        mov bh,cl
+        ;___ Check if ungaurded from black Bishop & Queen _____;
+        ;___ Check if ungaurded from black Rook & Queen_____;
+        exit_check:
+        cmp WkingCheck,1
+        jnz exit_check2
+                       
+                        pusha
+                        mov bh,0       
+                        mov dh, 23;row
+                        mov dl, 00
+                        mov ah, 2
+                        int 10h
+                        mov di,0
+                        printclear:
+                        mov al,checkmes[di]
+                                mov ah, 09h
+                                mov bh, 0
+                                mov bl, 0fh
+                                mov cx, 1
+                                int 10h
+                                inc dl
+                                mov bh, 0;pg number
+                                mov dh, 23;row
+                                mov ah, 2
+                                int 10h
+                                inc di
+                                cmp checkmes[di],'$'
+                                jnz printclear     
+                                popa
+        exit_check2:
+        popa
+        ret
+ChkWhiteKing ENDP 
 
+;Check if Blak king is ungarded from one side
+ChkBlackKing PROC
+
+        ret
+ChkBlackKing ENDP 
+
+Chk_Check_King PROC 
+        Call ChkWhiteKing
+        Call ChkBlackKing        
+        ret
+Chk_Check_King ENDP 
+
+
+
+
+
+
+
+
+;================================================
 SetTime         PROC    FAR     ;board cell = bx
                 pusha
 
@@ -1446,14 +1545,19 @@ PrntNumber      PROC ;bh = cell, dl = col
 
         popa
 
+      
+
         
 
 POPA
+
 RET
 PrntNumber      ENDP
 
+
 GetCurrTime     PROC    FAR ;
                 pusha
+               
                 mov ah, 2ch ;cl = min, dh = sec
                 int 21h      
                 
@@ -1483,14 +1587,14 @@ GetCurrTime     PROC    FAR ;
 
 
                 mov bh, ah
-                mov dl, 0
+                mov dl, 75
                 CALL PrntNumber
 
                  ;======= print column ========;
                 pusha
                         mov bh, 0;pg number
                         mov dh, 24;row
-                        mov dl, 2
+                        mov dl, 77
                         mov ah, 2
                         int 10h
                 popa
@@ -1505,7 +1609,7 @@ GetCurrTime     PROC    FAR ;
                 popa
 
                 mov bh, al
-                mov dl, 3
+                mov dl, 78
                 CALL PrntNumber
 
                 ;====== print ========
@@ -1534,6 +1638,7 @@ StartGame PROC FAR
         mov StartMin, cl
         mov StartSec, dh
 MAIN_LOOP:
+        Call ChkWhiteKing
         ;================= Chk if ended ================;
         cmp isGameEnded, 1
         jne ContGame

@@ -19,6 +19,15 @@ EXTRN PlayerSelectedRow:BYTE
 .286
 .MODEL SMALL
 .data
+;__________Messages________;
+Knightkill db 'A Knight has been killed$'
+Clearcheckmes db '                        $'
+Pawnnkill db 'A Pawn has been killed$'
+Queenkill db 'A Queen has been killed$'
+Kingkill db 'A King has been killed$'
+Rookkill db 'A Rook has been killed$'
+Bishopkill db 'A Bishop has been killed$'
+varkilled db ?
         ;------- peices -----------;
         emptyCell      equ 0
         pawn           equ 1
@@ -252,7 +261,191 @@ MvePieceFromGraphics    PROC    FAR ;si = playerNumber, bx=cell ===> al = cell c
                         CALL DrawSquare               ;clear cell
                 
 RET
-MvePieceFromGraphics ENDP
+
+DisplayMessage Proc far ;bx --> input(to cell)
+pusha
+ mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov dl, 00
+                        mov ah, 2
+                        int 10h
+                        ; lea si , Kingkill
+                        ; mov si,0
+                        ;------------------Clearing status--------------------;
+                        pusha
+                        mov di,0
+                        printclear:
+                        mov al,Clearcheckmes[di]
+                                mov ah, 09h
+                                mov bh, 0
+                                mov bl, 0fh
+                                mov cx, 1
+                                int 10h
+                                inc dl
+                                mov bh, 0;pg number
+                                mov dh, 24;row
+                                mov ah, 2
+                                int 10h
+                                inc di
+                        
+
+                                cmp Clearcheckmes[di],'$'
+                                jnz printclear     
+                                popa
+                ;----------------------------------------------;
+                 mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov dl, 00
+                        mov ah, 2
+                        int 10h
+mov cl,board[bx]   
+mov ch,00
+and cl,00000111b
+cmp cx,pawn
+jnz crook 
+              pusha
+                mov di,0
+                printP:
+                mov al,Pawnnkill[di]
+                        mov ah, 09h
+                        mov bh, 0
+                        mov bl, 0fh
+                        mov cx, 1
+                        int 10h
+                        inc dl
+                        mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov ah, 2
+                        int 10h
+                        inc di
+                
+
+                        cmp Pawnnkill[di],'$'
+                        jnz printP     
+                        popa
+jmp Ex
+crook:
+cmp cx,rook
+jnz cKing
+              pusha
+                mov di,0
+                printRo:
+                mov al,Rookkill[di]
+                        mov ah, 09h
+                        mov bh, 0
+                        mov bl, 0fh
+                        mov cx, 1
+                        int 10h
+                        inc dl
+                        mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov ah, 2
+                        int 10h
+                        inc di
+                
+
+                        cmp Rookkill[di],'$'
+                        jnz printRo    
+                        popa
+jmp Ex
+cKing:
+cmp cx,king
+jnz cKnight 
+               pusha
+                mov di,0
+                printK:
+                mov al,Kingkill[di]
+                        mov ah, 09h
+                        mov bh, 0
+                        mov bl, 0fh
+                        mov cx, 1
+                        int 10h
+                        inc dl
+                        mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov ah, 2
+                        int 10h
+                        inc di
+                        
+                        cmp Kingkill[di],'$'
+                        jnz printK    
+                        popa
+jmp Ex
+cKnight:
+cmp cx,knight
+jnz cQueen
+               pusha
+                mov di,0
+                printKn:
+                mov al,Knightkill[di]
+                        mov ah, 09h
+                        mov bh, 0
+                        mov bl, 0fh
+                        mov cx, 1
+                        int 10h
+                        inc dl
+                        mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov ah, 2
+                        int 10h
+                        inc di
+                        
+
+                        cmp Knightkill[di],'$'
+                        jnz printKn    
+                        popa
+jmp Ex
+cQueen:
+cmp cx,Queen
+jnz cBishop 
+               pusha
+                mov di,0
+                printQ:
+                mov al,Queenkill[di]
+                        mov ah, 09h
+                        mov bh, 0
+                        mov bl, 0fh
+                        mov cx, 1
+                        int 10h
+                        inc dl
+                        mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov ah, 2
+                        int 10h
+                        inc di
+                
+
+                        cmp Queenkill[di],'$'
+                        jnz printQ    
+                        popa
+jmp Ex
+cBishop:
+cmp cx,bishop
+jnz Ex
+               pusha
+                mov di,0
+                printB:
+                mov al,Bishopkill[di]
+                        mov ah, 09h
+                        mov bh, 0
+                        mov bl, 0fh
+                        mov cx, 1
+                        int 10h
+                        inc dl
+                        mov bh, 0;pg number
+                        mov dh, 24;row
+                        mov ah, 2
+                        int 10h
+                        inc di
+
+                        cmp Bishopkill[di],'$'
+                        jnz printB   
+                        popa
+Ex:
+popa
+ret
+DisplayMessage EndP
+
 
 MvePieceToGraphics      PROC    FAR;si = playerNumber, al = peice =====> di = pos, bx = cell
                         shl si, 1                       ;
@@ -264,6 +457,7 @@ MvePieceToGraphics      PROC    FAR;si = playerNumber, al = peice =====> di = po
                         cmp board[bx], emptyCell        ;chk if empty
                         je  stMvPc                      ;if empty skip clear part
                         ;START clear square
+                        Call DisplayMessage
                         mov bh, playerRows[si]          ;bh = row
                         push ax                         ;store al
                         CALL GetCellColor               ;al = cell color
