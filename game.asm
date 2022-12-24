@@ -424,7 +424,7 @@ EndGameState    PROC FAR
 ;========= inialize board =========;
                 mov cx, 64      ;clear board
                 mov si, 0
-inializeBoard:  mov board[si], 0
+        inializeBoard:  mov board[si], 0
                 mov peiceTimer[si], 0
                 mov validateMoves[si], 0
                 inc si
@@ -465,7 +465,7 @@ inializeBoard:  mov board[si], 0
                 mov board[61], bishop
                 mov board[62], knight
                 mov board[63], rook
-;============= in
+        ;============= in
                 mov isGameEnded, 0
                 mov playersState[1], playerMoveToChoosePeice
                 mov playersState[2], playerMoveToChoosePeice
@@ -987,7 +987,10 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 cmp   al,7
                                 je mvKn1
                                 mov cl, board[di+10]
-                                CALL GetPlayerColorV2
+                                CALL GetPlayerColorV2   ;get cx = 0 | if not same color
+                                                        ;get cx = si| if same color
+                                cmp cx,si              ;if not same color jmp
+                                jne mvKn1
                                 mov   validateMoves[di+10],cl
                                 mov lstValidDirection[0], di    ;for check
                                 add lstValidDirection[0], 10
@@ -997,6 +1000,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 je   mvKn2
                                 mov cl, board[di+6]
                                 CALL GetPlayerColorV2
+                                cmp cx,si              ;if not same color jmp
+                                jne mvKn2
                                 mov   validateMoves[di+6],cl
                                 mov lstValidDirection[2], di    ;for check
                                 add lstValidDirection[2], 6
@@ -1006,6 +1011,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 jae mvKn3
                                 mov cl, board[di+17]
                                 CALL GetPlayerColorV2
+                                cmp cx,si              ;if not same color jmp
+                                jne mvKn3
                                 mov   validateMoves[di+17],cl
                                 mov lstValidDirection[4], di    ;for check
                                 add lstValidDirection[4], 17
@@ -1015,6 +1022,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 jae mvKn4
                                 mov cl, board[di+15]
                                 CALL GetPlayerColorV2
+                                cmp cx,si              ;if not same color jmp
+                                jne mvKn4
                                 mov   validateMoves[di+15],cl
                                 mov lstValidDirection[6], di    ;for check
                                 add lstValidDirection[6], 15
@@ -1024,6 +1033,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 je mvKn5
                                 mov cl, board[di-6]
                                 CALL GetPlayerColorV2
+                                cmp cx,si              ;if not same color jmp
+                                jne mvKn5
                                 mov   validateMoves[di-6],cl
                                 mov lstValidDirection[8], di    ;for check
                                 sub lstValidDirection[8], 6
@@ -1033,6 +1044,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 je mvKn6
                                 mov cl, board[di-10]
                                 CALL GetPlayerColorV2
+                                cmp cx,si              ;if not same color jmp
+                                jne mvKn6
                                 mov   validateMoves[di-10],cl
                                 mov lstValidDirection[10], di    ;for check
                                 sub lstValidDirection[10], 10
@@ -1042,6 +1055,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 jbe mvKn7
                                 mov cl, board[di-15]
                                 CALL GetPlayerColorV2
+                                cmp cx,si              ;if not same color jmp
+                                jne mvKn7
                                 mov   validateMoves[di-15],cl
                                 mov lstValidDirection[12], di    ;for check
                                 sub lstValidDirection[12], 15
@@ -1051,6 +1066,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 jbe mvKn8
                                 mov cl, board[di-17]
                                 CALL GetPlayerColorV2
+                                cmp cx,si              ;if not same color jmp
+                                jne mvKn8
                                 mov   validateMoves[di-17],cl
                                 mov lstValidDirection[14], di    ;for check
                                 sub lstValidDirection[14], 17
@@ -1770,7 +1787,18 @@ GetCurrTime     PROC    FAR ;
 GetCurrTime     ENDP            
 
 
-
+;==========================================================================;
+;==========================================================================;
+;==========================================================================;
+;==========================================================================;
+;==========================================================================;
+;================================GAME======================================;
+;==========================================================================;
+;==========================================================================;
+;==========================================================================;
+;==========================================================================;
+;==========================================================================;
+;==========================================================================;
 
 StartGame PROC FAR
         ; ____ inialize video mode ____;
@@ -1792,6 +1820,7 @@ StartGame PROC FAR
 MAIN_LOOP:
         mov si, 1
         Call ChecKKing
+        
         mov si, 2
         Call ChecKKing
         ;================= Chk if ended ================;
