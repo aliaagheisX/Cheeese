@@ -20,7 +20,7 @@ files = [
 ]
 for filename in files:
     
-    im = Image.open("r/" + filename + ".png").convert('LA') ####greyscal, alpha
+    im = Image.open("23/" + filename + ".png").convert('LA') ####greyscal, alpha
     pixels = list(im.getdata())
     px =  []
     for elm in pixels:
@@ -38,7 +38,7 @@ for filename in files:
 
     # Split the array into multiple lines cause it will be too long for one line for the tasm/masm.
     for i in range(len(C)):
-        if i!=0 and i % 25 == 0:
+        if i!=0 and i % 23 == 0:
             StrC = StrC + str(C[i]) + " " + "\n DB "
         else:
             StrC = StrC + str(C[i]) + ", "
