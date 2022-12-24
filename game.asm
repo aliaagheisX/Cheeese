@@ -68,28 +68,42 @@
         PlayerEndedGame equ 4
 
         isGameEnded db 0
+        isKingCheck db ?, 0, 0
         playersState db ?, playerMoveToChoosePeice, playerMoveToChoosePeice
         playerCells db ?, 0, 56
         playerRows  db ?, 0, 7
         playerCols  db ?, 0, 0
         PlayerPos   dw ?, 0, 51520
+
+        kingsCells db ?, 4, 60
+        kingsRows  db ?, 0, 7
+        kingsCols  db ?, 4, 4
+
+
         PlayerSelectedCell  db ?, ?, ?
         PlayerSelectedRow  db ?, ?, ?
         PlayerSelectedPos  dw ?, ?, ?
 
+        lstValidDirection dw 8 dup(?);
+
         validateMoves db 64 dup(0)
+        validateMovesTemp db 64 dup(0)
+
         ; ____ board ____ ;
         board          db  rook+black, knight+black, bishop+black, queen+black, king+black, bishop+black, knight+black, rook+black
-                       db  8 dup(pawn+black)
+                       db  7 dup(pawn+black), emptyCell
                        db  4 dup(8 dup(emptyCell))
                        db  8 dup(pawn)
                        db  rook, knight, bishop, queen, king, bishop, knight, rook
         peiceTimer     dw  64 dup(0)
+        TmDiff equ 1
         ; _____Important Position ______;
         WKingpos db 7,5,60
         BKingpos db 3 dup(?)
-        WkingCheck db ?
-        checkmes db "there  is check$"
+        WkingCheck db ? ,4 ,60
+        checkmes db      "be carefull there  is a check$"
+        Clearcheckmes db '                              $'
+
 
 Bpawn DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 
  DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -578,6 +592,9 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                         cmp al, 0               ;check if white
                         jne PwnMv4
                         mov validateMoves[di+9], dl
+                        mov lstValidDirection[0], di    ;for check
+                        add lstValidDirection[0], 9
+
                 PwnMv4: ;right down
                         cmp PlayerCols[si], 0
                         mov al, board[di+7]
@@ -587,6 +604,8 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                         cmp al, 0               ;check if white
                         jne EXITPP1
                         mov validateMoves[di+7], dl
+                        mov lstValidDirection[2], di    ;for check
+                        add lstValidDirection[2], 7
                 EXITPP1:
                 POPA
                 RET
@@ -613,6 +632,9 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                         cmp al, 1               ;check if white
                         jne PwnMv42
                         mov validateMoves[di-9], dl
+
+                        mov lstValidDirection[0], di    ;for check
+                        sub lstValidDirection[0], 9
                 PwnMv42: ;right down
                         cmp PlayerCols[si], 7
                         mov al, board[di-7]
@@ -622,6 +644,8 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                         cmp al, 1               ;check if white
                         jne EXITPP2
                         mov validateMoves[di-7], dl
+                        mov lstValidDirection[2], di    ;for check
+                        sub lstValidDirection[2], 7
                 EXITPP2:
                 popa
                 RET     
@@ -674,6 +698,7 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 jmp NotHelight
                 Helight:
                 mov validateMoves[di],ch
+                mov lstValidDirection[0], di    ;for check
                 NotHelight:
                 cmp dl,1
         jnz verticalDown
@@ -703,6 +728,7 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 jmp NotHelight1
                 Helight1:
                 mov validateMoves[di],ch
+                mov lstValidDirection[2], di    ;for check
                 NotHelight1:
                 cmp dl,1
         jnz verticalUP
@@ -733,6 +759,8 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 jmp NotHelight2
                 Helight2:
                 mov validateMoves[di],ch
+                mov lstValidDirection[4], di    ;for check
+                     ;========for check
                 NotHelight2:
                 cmp dl,1
         jnz HorizontalRight
@@ -764,6 +792,8 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 jmp NotHelight3
                 Helight3:
                 mov validateMoves[di],ch
+                mov lstValidDirection[6], di    ;for check
+                
                 NotHelight3:
                 cmp dl,1
         jnz HorizontalLeft
@@ -824,6 +854,7 @@ ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 jmp NotHelightBishop
                 HelightBishop:
                 mov validateMoves[di],ch
+                mov lstValidDirection[0], di
                 NotHelightBishop:
                 cmp dl,1
         jnz TopLeft
@@ -856,6 +887,7 @@ ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 jmp NotHelightBishop1
                 HelightBishop1:
                 mov validateMoves[di],ch
+                mov lstValidDirection[2], di
                 NotHelightBishop1:
                 cmp dl,1
         jnz TopRight
@@ -889,6 +921,7 @@ ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 jmp NotHelightBishop2
                 HelightBishop2:
                 mov validateMoves[di],ch
+                mov lstValidDirection[4], di
                 NotHelightBishop2:
                 cmp dl,1
         jnz DownLeft
@@ -923,6 +956,7 @@ ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 jmp NotHelightBishop3
                 HelightBishop3:
                 mov validateMoves[di],ch
+                mov lstValidDirection[6], di
                 NotHelightBishop3:
                 cmp dl,1
         jnz DownRight
@@ -955,6 +989,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 mov cl, board[di+10]
                                 CALL GetPlayerColorV2
                                 mov   validateMoves[di+10],cl
+                                mov lstValidDirection[0], di    ;for check
+                                add lstValidDirection[0], 10
                         mvKn1:  cmp   dl,1
                                 jbe   mvKn2
                                 cmp al, 7
@@ -962,6 +998,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 mov cl, board[di+6]
                                 CALL GetPlayerColorV2
                                 mov   validateMoves[di+6],cl
+                                mov lstValidDirection[2], di    ;for check
+                                add lstValidDirection[2], 6
                         mvKn2:  cmp   dl, 7
                                 je mvKn3
                                 cmp al, 6
@@ -969,6 +1007,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 mov cl, board[di+17]
                                 CALL GetPlayerColorV2
                                 mov   validateMoves[di+17],cl
+                                mov lstValidDirection[4], di    ;for check
+                                add lstValidDirection[4], 17
                         mvKn3: cmp dl,0
                                 je mvKn4
                                 cmp al,6
@@ -976,6 +1016,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 mov cl, board[di+15]
                                 CALL GetPlayerColorV2
                                 mov   validateMoves[di+15],cl
+                                mov lstValidDirection[6], di    ;for check
+                                add lstValidDirection[6], 15
                         mvKn4:  cmp dl,6
                                 jae mvKn5
                                 cmp al,0
@@ -983,6 +1025,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 mov cl, board[di-6]
                                 CALL GetPlayerColorV2
                                 mov   validateMoves[di-6],cl
+                                mov lstValidDirection[8], di    ;for check
+                                sub lstValidDirection[8], 6
                         mvKn5:   cmp dl,1
                                 jbe mvKn6
                                 cmp al,0
@@ -990,6 +1034,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 mov cl, board[di-10]
                                 CALL GetPlayerColorV2
                                 mov   validateMoves[di-10],cl
+                                mov lstValidDirection[10], di    ;for check
+                                sub lstValidDirection[10], 10
                         mvKn6:   cmp dl,7
                                 je mvKn7
                                 cmp al,1
@@ -997,6 +1043,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 mov cl, board[di-15]
                                 CALL GetPlayerColorV2
                                 mov   validateMoves[di-15],cl
+                                mov lstValidDirection[12], di    ;for check
+                                sub lstValidDirection[12], 15
                         mvKn7:   cmp dl,0
                                 je mvKn8
                                 cmp al,1
@@ -1004,6 +1052,8 @@ ValidateKnight Proc FAR                                         ;player 1==>blac
                                 mov cl, board[di-17]
                                 CALL GetPlayerColorV2
                                 mov   validateMoves[di-17],cl
+                                mov lstValidDirection[14], di    ;for check
+                                sub lstValidDirection[14], 17
                                 
                         mvKn8:          popa
                                         RET
@@ -1245,7 +1295,7 @@ ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't
                         cmp cl, ah              ;check if curr min > peice stop min
                         ja STime                ;if (Curr min) > (Stop min) succ & leave
                                                 ;else check min
-                        sub dh, 3               ;dh = CurrSec - 3 
+                        sub dh, TmDiff               ;dh = CurrSec - 3 
                         cmp dh, al              ;chk CurrSec-3 >= Stop sec
                         jae STime                ;if true succ & leave
                         mov cx,0                ;else set cx=0 & leave
@@ -1259,57 +1309,21 @@ ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't
                 RET
 ChKTime         ENDP
 ;========================Check============================
- ;Check if white king is ungarded from one side
-ChkWhiteKing PROC
-        pusha
-        mov al,WKingpos    ;al=row
-        mov cl,WKingpos[1] ;cl=col
-        mov bl,WKingpos[2]
-        mov bh,0
-        mov di,bx
-        ;___ Check if ungaurded from black pawns _____;
-        cmp al,0
-        jz Check_Knight
-        mov bl,al
-        inc bl
-        mov bh,cl
-        chkLSide:
-        cmp cl,0
-        jz chkRSide
-        dec bh
-        mov dl,pawn+black
-        cmp board[di-9],dl
-        jnz chkRSide
-        mov WkingCheck,1
-        jmp exit_check
-        chkRSide:
-        cmp cl,7
-        jz Check_Knight
-        mov bh,cl 
-        mov bl,al
-        mov dl,pawn+black
-        cmp board[di-7],dl
-        jnz Check_Knight
-        mov WkingCheck,1
-        jmp exit_check
-        ;___ Check if ungaurded from black Knight _____;
-        Check_Knight:
-        mov bl,al
-        mov bh,cl
-        ;___ Check if ungaurded from black Bishop & Queen _____;
-        ;___ Check if ungaurded from black Rook & Queen_____;
-        exit_check:
-        cmp WkingCheck,1
-        jnz exit_check2
-                       
-                        pusha
+
+PrntChk         PROC    FAR
+                mov ah, 0
+                or ah, isKingCheck[1]
+                or ah, isKingCheck[2]
+                cmp ah, 1
+                jne clrKng
+                pusha
                         mov bh,0       
                         mov dh, 23;row
                         mov dl, 00
                         mov ah, 2
                         int 10h
                         mov di,0
-                        printclear:
+                        printclear1:
                         mov al,checkmes[di]
                                 mov ah, 09h
                                 mov bh, 0
@@ -1323,30 +1337,155 @@ ChkWhiteKing PROC
                                 int 10h
                                 inc di
                                 cmp checkmes[di],'$'
-                                jnz printclear     
-                                popa
-        exit_check2:
+                                jnz printclear1    
+                popa
+                RET
+       clrKng: pusha
+                        mov bh,0       
+                        mov dh, 23;row
+                        mov dl, 00
+                        mov ah, 2
+                        int 10h
+                        mov di,0
+                        printclear2:
+                        mov al,Clearcheckmes[di]
+                                mov ah, 09h
+                                mov bh, 0
+                                mov bl, 0fh
+                                mov cx, 1
+                                int 10h
+                                inc dl
+                                mov bh, 0;pg number
+                                mov dh, 23;row
+                                mov ah, 2
+                                int 10h
+                                inc di
+                                cmp Clearcheckmes[di],'$'
+                                jnz printclear2    
         popa
-        ret
-ChkWhiteKing ENDP 
-
-;Check if Blak king is ungarded from one side
-ChkBlackKing PROC
-
-        ret
-ChkBlackKing ENDP 
-
-Chk_Check_King PROC 
-        Call ChkWhiteKing
-        Call ChkBlackKing        
-        ret
-Chk_Check_King ENDP 
+                RET
+PrntChk         ENDP
 
 
+ClrLstChk       PROC    FAR
+                mov lstValidDirection[0], dx
+                mov lstValidDirection[2], dx
+                mov lstValidDirection[4], dx
+                mov lstValidDirection[6], dx
+                mov lstValidDirection[8], dx
+                mov lstValidDirection[10], dx
+                mov lstValidDirection[12], dx
+                mov lstValidDirection[14], dx
+                ret
+ClrLstChk       ENDP
 
 
+ChecKKing       PROC    ;si = player number
+                pusha
+                mov bl, playerCells[si]
+                mov cl, PlayerCols[si]
+                mov ch, playerRows[si]
+                pusha 
 
+                mov cx, 64
+                mov di, 0
+        tempMv: mov al, validateMoves[di]
+                mov validateMovesTemp[di], al
+                inc di
+                loop tempMv
 
+                CALL ClrHighlightedMvs
+
+                mov al,kingsCells[si]
+                mov playerCells[si], al
+                mov al,kingsCols[si]
+                mov PlayerCols[si], al
+                mov al,kingsRows[si]
+                mov playerRows[si], al
+                mov dl, kingsCells[si]
+                mov dh, 0
+                ;=================chks of pawn =========;
+                CALL ClrLstChk
+                CALL ValidatePawn
+
+                mov di, lstValidDirection[0]
+                mov al, board[di]
+                and al, peice
+                cmp al, pawn
+                je chkdShrt
+                mov di, lstValidDirection[2]
+                mov al, board[di]
+                and al, peice
+                cmp al, pawn
+                je chkdShrt
+                ;=================chks of rook =========;
+                CALL ClrLstChk
+                
+                CALL ValidateRook
+                mov cx, 4
+                mov bx, 0
+        lpRkCh: mov di, lstValidDirection[bx]
+                mov al, board[di]
+                and al, peice
+                cmp al, rook
+                je chkdShrt
+                cmp al, queen
+                je chkdShrt
+                add bx, 2
+                loop lpRkCh
+
+                ;=================chks of knight =========;
+                CALL ClrLstChk
+                CALL ValidateKnight
+
+                mov cx, 8
+                mov bx, 0
+        lpKnCh: mov di, lstValidDirection[bx]
+                mov al, board[di]
+                and al, peice
+                cmp al, knight
+        chkdShrt:        je chked
+                add bx, 2
+                loop lpKnCh
+        
+        ;=================chks of bishop =========;
+                CALL ClrLstChk
+
+                CALL ValidateBishop
+                mov cx, 4
+                mov bx, 0
+        lpBhCh: mov di, lstValidDirection[bx]
+                mov al, board[di]
+                and al, peice
+                cmp al, bishop
+                je chked
+                cmp al, queen
+                je chkdShrt
+                add bx, 2
+                loop lpBhCh
+                
+                jmp extChkd
+
+        chked:  mov isKingCheck[si], 1
+                jmp extchk2
+
+        extChkd: mov isKingCheck[si], 0 
+        extchk2:        popa
+                mov playerCells[si], bl
+                mov PlayerCols[si], cl
+                mov playerRows[si], ch
+
+                mov cx, 64
+                mov di, 0
+        tempMv1: mov al, validateMovesTemp[di]
+                mov validateMoves[di], al
+                inc di
+                loop tempMv1
+                CALL DrawHighlightedMvs
+                popa
+                CALL PrntChk
+                RET
+ChecKKing       ENDP
 
 
 ;================================================
@@ -1470,10 +1609,23 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 cmp playerRows[si], 0        ;if first row 
                 je  PrmPwn
                 cmp playerRows[si], 7        ; or last row
-                jne skpPwn
+                jne skpKng                   ;he is pawn so skip king
         PrmPwn: or al, 4        ;transfer peice to queen by set third bit
+                jmp skpKng
+        skpPwn: cmp dl, king    ;chk if king
+                jne skpKng
+                mov ah, playerCells[si]
+                mov kingsCells[si], ah
+
+                mov ah, playerCols[si]
+                mov kingsCols[si], ah
+
+                mov ah, playerRows[si]
+                mov kingsCols[si], ah
+                
+
                 ;== Graphically
-        skpPwn: CALL MvePieceToGraphics      ;out ===> bx = cell
+        skpKng: CALL MvePieceToGraphics      ;out ===> bx = cell
                 ;== Logically
                 CALL SetTime                    ;(bx = cell) => peiceTime[bx] = curr time
                 mov dl, board[bx]               ;get peice type that killed
@@ -1638,54 +1790,58 @@ StartGame PROC FAR
         mov StartMin, cl
         mov StartSec, dh
 MAIN_LOOP:
-        Call ChkWhiteKing
+        mov si, 1
+        Call ChecKKing
+        mov si, 2
+        Call ChecKKing
         ;================= Chk if ended ================;
-        cmp isGameEnded, 1
+noActGM: cmp isGameEnded, 1
         jne ContGame
         CALL EndGameState
         RET
         ;================= Continue Game ================;
+        
 ContGame: CALL GetCurrTime
 
         mov ah, 1
         int 16h
-        jz MAIN_LOOP
+        jz noActGM
 
         mov ah, 0
         int 16h
 
         ;or al, 00100000b ;capital letter
-        mov si, 1
+         mov si, 1
         cmp al, 'w'
         jne pressA
         Call MoveUp
-        jmp MAIN_LOOP
+        jmp noActGM
         
         pressA: cmp al, 'a'
                 jne pressS
                 CALL MoveLeft
-                shrt: jmp MAIN_LOOP
+                shrt: jmp noActGM
 
         pressS: cmp al, 's'
                 jne pressD
                 CALL MoveDown
-                jmp MAIN_LOOP
+                jmp noActGM
 
         pressD: cmp al, 'd'         ;right
                 jne pressQ
                 CALL MoveRight
-                jmp MAIN_LOOP
+                jmp noActGM
 
         pressQ:         cmp al, 'q'
                         jne pressUp
                         cmp playersState[1], playerMoveToChoosePeice
                         jne stateLabel1
                         CALL SelectValidationOfPeice
-                        jmp MAIN_LOOP
+                        jmp noActGM
         stateLabel1:    cmp playersState[1], playerMoveToChooseAction
-                        jne MAIN_LOOP
+                        jne noActGM
                         CALL MovePeiceFromTo
-                        jmp MAIN_LOOP
+        shrtMainLoop:   jmp MAIN_LOOP
                         ;_________ highlight moves _____;
 
 
@@ -1693,17 +1849,17 @@ ContGame: CALL GetCurrTime
                         cmp ah, 48h
                         jne pressLeft
                         CALL MoveUp
-                        jmp MAIN_LOOP
+                        jmp noActGM
 
         pressLeft:      cmp ah, 4bh
                         jne pressDown
                         Call MoveLeft
-                        jmp MAIN_LOOP
+                        jmp noActGM
 
         pressDown:      cmp ah, 50h  
                         jne pressRight
                         CALL MoveDown
-                        jmp MAIN_LOOP
+                        jmp noActGM
 
         pressRight:     cmp ah, 4dh
                         jne pressZero
@@ -1719,6 +1875,7 @@ ContGame: CALL GetCurrTime
         stateLabel2:            cmp   playersState[2], playerMoveToChooseAction
                                 jne   MainEndGame
                                 CALL  MovePeiceFromTo
+                                jmp   shrtMainLoop
         MainEndGame:            cmp ah,3Eh      ;chk if clik f4
                                 jne shrt2
                                 mov playersState[1], PlayerEndedGame

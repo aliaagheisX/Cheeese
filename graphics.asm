@@ -261,6 +261,7 @@ MvePieceFromGraphics    PROC    FAR ;si = playerNumber, bx=cell ===> al = cell c
                         CALL DrawSquare               ;clear cell
                 
 RET
+MvePieceFromGraphics    ENDP  ;si = playerNumber, bx=cell ===> al = cell color, di = pos **bl = cell
 
 DisplayMessage Proc far ;bx --> input(to cell)
 pusha
@@ -539,4 +540,3 @@ ClrHighlightedMvs      ENDP
 
 
 END
-
