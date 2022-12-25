@@ -40,7 +40,7 @@
         boardWidth     equ 23
         imageWidth     equ 23
         ; ____ game time _____ ;
-        GameMin        equ 3
+        GameMin        equ 60
         GameSec        equ 0
         StartMin        db ?
         StartSec        db ?
@@ -89,9 +89,10 @@
         validateMoves db 64 dup(0)
         validateMovesTemp db 64 dup(0)
 
+
         ; ____ board ____ ;
         board          db  rook+black, knight+black, bishop+black, queen+black, king+black, bishop+black, knight+black, rook+black
-                       db  7 dup(pawn+black), emptyCell
+                       db  8 dup(pawn+black)
                        db  4 dup(8 dup(emptyCell))
                        db  8 dup(pawn)
                        db  rook, knight, bishop, queen, king, bishop, knight, rook
@@ -569,7 +570,8 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                 cmp si, 1 ;chk if player black
                 jne PaP2
 
-        PaP1:   
+        PaP1:           cmp playerRows[si], 7
+                        je EXITPP1
                 PwnMv1: cmp playerRows[si], 1           ;down twice in first move
                         jne PwnMv2
                         mov al, board[di+16]
@@ -609,7 +611,8 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                 EXITPP1:
                 POPA
                 RET
-        PaP2:
+        PaP2:           cmp playerRows[si], 0
+                        je EXITPP2
                 PwnMv12: cmp playerRows[si], 6          ;up twice in first move
                         jne PwnMv22
                         mov al, board[di-16]
@@ -1384,7 +1387,7 @@ PrntChk         PROC    FAR
 PrntChk         ENDP
 
 
-ClrLstChk       PROC    FAR
+ClrLstChk       PROC    FAR     ;dx= king cell
                 mov lstValidDirection[0], dx
                 mov lstValidDirection[2], dx
                 mov lstValidDirection[4], dx
@@ -1399,7 +1402,7 @@ ClrLstChk       ENDP
 
 ChecKKing       PROC    ;si = player number
                 pusha
-                mov bl, playerCells[si]
+                mov bl, playerCells[si] ;bl  to store = playerCell,col,row
                 mov cl, PlayerCols[si]
                 mov ch, playerRows[si]
                 pusha 
@@ -1419,7 +1422,7 @@ ChecKKing       PROC    ;si = player number
                 mov PlayerCols[si], al
                 mov al,kingsRows[si]
                 mov playerRows[si], al
-                mov dl, kingsCells[si]
+                mov dl, kingsCells[si]  ;dx = king cell use in clear lstValidMvs
                 mov dh, 0
                 ;=================chks of pawn =========;
                 CALL ClrLstChk
@@ -1437,8 +1440,8 @@ ChecKKing       PROC    ;si = player number
                 je chkdShrt
                 ;=================chks of rook =========;
                 CALL ClrLstChk
-                
                 CALL ValidateRook
+
                 mov cx, 4
                 mov bx, 0
         lpRkCh: mov di, lstValidDirection[bx]
@@ -1477,7 +1480,7 @@ ChecKKing       PROC    ;si = player number
                 cmp al, bishop
                 je chked
                 cmp al, queen
-                je chkdShrt
+                je chked
                 add bx, 2
                 loop lpBhCh
                 
@@ -1491,7 +1494,7 @@ ChecKKing       PROC    ;si = player number
                 mov playerCells[si], bl
                 mov PlayerCols[si], cl
                 mov playerRows[si], ch
-
+                ;======== return to validate mvs
                 mov cx, 64
                 mov di, 0
         tempMv1: mov al, validateMovesTemp[di]
@@ -1499,6 +1502,7 @@ ChecKKing       PROC    ;si = player number
                 inc di
                 loop tempMv1
                 CALL DrawHighlightedMvs
+                
                 popa
                 CALL PrntChk
                 RET
@@ -1605,11 +1609,15 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 mov bl, playerCells[si]     ;bx = player cell
                 mov ax, si                  ;get valid state of cell
                 cmp validateMoves[bx], al   ;chk if one of valid moves of player
-                jne EXITMVEPEICE            ;if not => exit
+                je startMvePeiceF
+                CALL ClrHighlightedMvs      ;if not exit
+                mov playersState[si], playerMoveToChoosePeice
+                popa
+                RET
 
                 ;======= handel move cell **from  ======;
                 ;== Graphically
-                CALL MvePieceFromGraphics     ;out==>bl = cell
+        startMvePeiceF:        CALL MvePieceFromGraphics     ;out==>bl = cell
                 ;== Logically
                 mov bh, 0
                 mov peiceTimer[bx], 0         ;return time state of cell
@@ -1638,9 +1646,7 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 mov kingsCols[si], ah
 
                 mov ah, playerRows[si]
-                mov kingsCols[si], ah
-                
-
+                mov kingsRows[si], ah
                 ;== Graphically
         skpKng: CALL MvePieceToGraphics      ;out ===> bx = cell
                 ;== Logically
@@ -1649,20 +1655,12 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 and dl, peice
                 cmp dl, king                    ;chk if king
                 jne skipKingDead
-                
                 mov playersState[si], PlayerWin ;if king win
                 xor si, 3           ; to toggle the player number to change states
                 mov playersState[si], PlayerLose
                 xor si, 3           ;to return the number of the player again
                 mov isGameEnded, 1
-                 
-
         skipKingDead:        mov board[bx], al
-
-
-                
-                
-                
 EXITMVEPEICE:   CALL ClrHighlightedMvs
                 mov playersState[si], playerMoveToChoosePeice
                 popa
@@ -1818,11 +1816,6 @@ StartGame PROC FAR
         mov StartMin, cl
         mov StartSec, dh
 MAIN_LOOP:
-        mov si, 1
-        Call ChecKKing
-        
-        mov si, 2
-        Call ChecKKing
         ;================= Chk if ended ================;
 noActGM: cmp isGameEnded, 1
         jne ContGame
@@ -1870,6 +1863,10 @@ ContGame: CALL GetCurrTime
         stateLabel1:    cmp playersState[1], playerMoveToChooseAction
                         jne noActGM
                         CALL MovePeiceFromTo
+                        mov si, 2       ;black moved => mov peice then check check another player
+                        Call ChecKKing
+                        mov si, 1       ;black moved => mov peice then check check another player
+                        Call ChecKKing
         shrtMainLoop:   jmp MAIN_LOOP
                         ;_________ highlight moves _____;
 
@@ -1904,6 +1901,10 @@ ContGame: CALL GetCurrTime
         stateLabel2:            cmp   playersState[2], playerMoveToChooseAction
                                 jne   MainEndGame
                                 CALL  MovePeiceFromTo
+                                mov si, 2       ;black moved => mov peice then check check another player
+                        Call ChecKKing
+                        mov si, 1       ;black moved => mov peice then check check another player
+                        Call ChecKKing
                                 jmp   shrtMainLoop
         MainEndGame:            cmp ah,3Eh      ;chk if clik f4
                                 jne shrt2

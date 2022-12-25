@@ -43,6 +43,10 @@ varkilled db ?
         boardWidth     equ 23
         imageWidth     equ 23
         emptyCell     equ 0
+        killedPeicePos dw 184 ;23*8
+        killedPeiceRow db 0 ;23*8
+        killedPeiceCol db 0 ;23*8
+
 .CODE
 
 
@@ -147,7 +151,17 @@ DrawSquareBord ENDP
 
 DrawBoard       PROC    FAR ;inialize first with all peices
                 CALL DrawGrid 
-                
+                pusha
+                mov ah,6  ; function 6
+                mov al,15  ; scroll by 1 line
+                mov bh,3h  ; normal video attribute
+
+                mov ch,0  ; upper left row after you:
+                mov cl,23  ; upper left col
+                mov dh,14 ; lower right row
+                mov dl,39 ; lower right col
+                int 10h
+                popa
 
                 pusha 
                         mov si, 0 ;initial cell      
@@ -264,46 +278,46 @@ RET
 MvePieceFromGraphics    ENDP  ;si = playerNumber, bx=cell ===> al = cell color, di = pos **bl = cell
 
 DisplayMessage Proc far ;bx --> input(to cell)
-pusha
- mov bh, 0;pg number
-                        mov dh, 24;row
-                        mov dl, 00
-                        mov ah, 2
-                        int 10h
-                        ; lea si , Kingkill
-                        ; mov si,0
-                        ;------------------Clearing status--------------------;
-                        pusha
-                        mov di,0
-                        printclear:
-                        mov al,Clearcheckmes[di]
-                                mov ah, 09h
-                                mov bh, 0
-                                mov bl, 0fh
-                                mov cx, 1
-                                int 10h
-                                inc dl
-                                mov bh, 0;pg number
+        pusha
+        mov bh, 0;pg number
                                 mov dh, 24;row
+                                mov dl, 00
                                 mov ah, 2
                                 int 10h
-                                inc di
-                        
+                                ; lea si , Kingkill
+                                ; mov si,0
+                                ;------------------Clearing status--------------------;
+                                pusha
+                                mov di,0
+                                printclear:
+                                mov al,Clearcheckmes[di]
+                                        mov ah, 09h
+                                        mov bh, 0
+                                        mov bl, 0fh
+                                        mov cx, 1
+                                        int 10h
+                                        inc dl
+                                        mov bh, 0;pg number
+                                        mov dh, 24;row
+                                        mov ah, 2
+                                        int 10h
+                                        inc di
+                                
 
-                                cmp Clearcheckmes[di],'$'
-                                jnz printclear     
-                                popa
-                ;----------------------------------------------;
-                 mov bh, 0;pg number
-                        mov dh, 24;row
-                        mov dl, 00
-                        mov ah, 2
-                        int 10h
-mov cl,board[bx]   
-mov ch,00
-and cl,00000111b
-cmp cx,pawn
-jnz crook 
+                                        cmp Clearcheckmes[di],'$'
+                                        jnz printclear     
+                                        popa
+                        ;----------------------------------------------;
+                        mov bh, 0;pg number
+                                mov dh, 24;row
+                                mov dl, 00
+                                mov ah, 2
+                                int 10h
+        mov cl,board[bx]   
+        mov ch,00
+        and cl,00000111b
+        cmp cx,pawn
+        jnz crook 
               pusha
                 mov di,0
                 printP:
@@ -324,10 +338,10 @@ jnz crook
                         cmp Pawnnkill[di],'$'
                         jnz printP     
                         popa
-jmp Ex
-crook:
-cmp cx,rook
-jnz cKing
+        jmp Ex
+        crook:
+        cmp cx,rook
+        jnz cKing
               pusha
                 mov di,0
                 printRo:
@@ -348,10 +362,10 @@ jnz cKing
                         cmp Rookkill[di],'$'
                         jnz printRo    
                         popa
-jmp Ex
-cKing:
-cmp cx,king
-jnz cKnight 
+        jmp Ex
+        cKing:
+        cmp cx,king
+        jnz cKnight 
                pusha
                 mov di,0
                 printK:
@@ -371,10 +385,10 @@ jnz cKnight
                         cmp Kingkill[di],'$'
                         jnz printK    
                         popa
-jmp Ex
-cKnight:
-cmp cx,knight
-jnz cQueen
+        jmp Ex
+        cKnight:
+        cmp cx,knight
+        jnz cQueen
                pusha
                 mov di,0
                 printKn:
@@ -395,10 +409,10 @@ jnz cQueen
                         cmp Knightkill[di],'$'
                         jnz printKn    
                         popa
-jmp Ex
-cQueen:
-cmp cx,Queen
-jnz cBishop 
+        jmp Ex
+        cQueen:
+        cmp cx,Queen
+        jnz cBishop 
                pusha
                 mov di,0
                 printQ:
@@ -419,10 +433,10 @@ jnz cBishop
                         cmp Queenkill[di],'$'
                         jnz printQ    
                         popa
-jmp Ex
-cBishop:
-cmp cx,bishop
-jnz Ex
+        jmp Ex
+        cBishop:
+        cmp cx,bishop
+        jnz Ex
                pusha
                 mov di,0
                 printB:
@@ -458,6 +472,20 @@ MvePieceToGraphics      PROC    FAR;si = playerNumber, al = peice =====> di = po
                         cmp board[bx], emptyCell        ;chk if empty
                         je  stMvPc                      ;if empty skip clear part
                         ;START clear square
+                        pusha
+                        mov al, board[bx]
+                        mov di, killedPeicePos
+                        CALL DrawImg
+                        add killedPeicePos, 23
+                        add killedPeiceCol, 1
+                        cmp killedPeiceCol, 6
+                        jne skpUpdateRow
+                        mov killedPeiceCol, 0
+                        add killedPeicePos, 320*23;to go down row of peices
+                        sub killedPeicePos, 23*6;to return to first col
+
+                        
+        skpUpdateRow:                 popa
                         Call DisplayMessage
                         mov bh, playerRows[si]          ;bh = row
                         push ax                         ;store al
