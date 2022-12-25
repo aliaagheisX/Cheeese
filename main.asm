@@ -97,10 +97,11 @@ DRAWMAINSCREEN PROC FAR
 RET
 
 DRAWMAINSCREEN ENDP
+
+
 ChattingScreen Proc FAR                                          ; al ==> startfor x ;cl ==>start for y
         ; For Chat Mode cl=0 al=0
                              pusha
-                             
                       
                              mov   bh,al
                              mov   ah,0                          ;switch to text mode
@@ -115,6 +116,7 @@ ChattingScreen Proc FAR                                          ; al ==> startf
                              mov   ah, 9
                              mov   dx, offset Playername1
                              int   21h
+                             mov   ah,0
                              mov   ah,2
                              mov   dl,':'
                              int   21h
@@ -122,14 +124,14 @@ ChattingScreen Proc FAR                                          ; al ==> startf
                              mov   dl,10
                              int   21h
                              mov   ah,2
-                             mov   dl,13
+                             mov   dl,10
                              int   21h
                              mov   ah, 9
                              mov   dx, offset talk
                              int   21h
                              mov ah,2
                              mov   dl,0                          ;x
-                             mov   dh,12                         ;y
+                             mov   dh,15                         ;y
                              int   10h
                              mov   cx,80
         Seperate:            
@@ -158,18 +160,17 @@ ChattingScreen Proc FAR                                          ; al ==> startf
                              mov   dh,17
                              mov   ah,00
                              mov   al,00
-        Reading:             
+         Reading:             
                                 ; check: 
                                 mov ah, 1
                                 int 16h
                                 jz reading
                                 mov ah, 0
                                 int 16h
-                                cmp ah,03dh 
-                                je comp   
-
+                                cmp ah,3Eh  
+                                je comp         
                              push  dx
-                             cmp   dh,24
+                             cmp   dh,24          ;when make 25 there is a gap in x and in y
                              jb   continuewriting
                         ;      mov   ah,2
                         ;      mov   dl,0                          ;x                 
@@ -186,27 +187,28 @@ ChattingScreen Proc FAR                                          ; al ==> startf
                              mov   ah,0AH
                              mov   dx,offset InDATA
                              int   21h
-                                    
+                            
+
+        
                              mov   ah,2
                              pop   dx
                              mov   dl,0
                              inc   dh
+                             
                              int   10h
-                              
+       
                              dec   si
                              cmp   si,0
+                         
                              jnz   Reading
 
-                       
-
-        
-comp:
-CALL DrawMainScreen    
-
+       comp :
 
                              popa
                              ret
 ChattingScreen Endp
+
+
 Usernames Proc FAR
         pusha
         mov ah,0
@@ -320,6 +322,7 @@ returnHme:    CALL DrawMainScreen             ;main graphically
         chkF1:  cmp ah, 03bh    ;chk f2
                 jne chkF2
                 CALL ChattingScreen
+                jmp returnHme
 
         chkF2:  cmp ah, 03Ch    ;chk f2
                 jne chkE
