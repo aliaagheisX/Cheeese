@@ -167,7 +167,7 @@ ChattingScreen Proc FAR                                          ; al ==> startf
                                 jz reading
                                 mov ah, 0
                                 int 16h
-                                cmp ah,3Eh  
+                                cmp ah,03dh 
                                 je comp         
                              push  dx
                              cmp   dh,24          ;when make 25 there is a gap in x and in y
@@ -202,7 +202,11 @@ ChattingScreen Proc FAR                                          ; al ==> startf
                          
                              jnz   Reading
 
+                       
+
+
        comp :
+       CALL DrawMainScreen
 
                              popa
                              ret
