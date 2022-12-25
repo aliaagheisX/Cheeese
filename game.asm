@@ -40,7 +40,7 @@
         boardWidth     equ 23
         imageWidth     equ 23
         ; ____ game time _____ ;
-        GameMin        equ 60
+        GameMin        equ 3
         GameSec        equ 0
         StartMin        db ?
         StartSec        db ?
@@ -99,7 +99,7 @@
                        db  8 dup(pawn)
                        db  rook, knight, bishop, queen, king, bishop, knight, rook
         peiceTimer     dw  64 dup(0)
-        TmDiff equ 1
+        TmDiff equ 3
         ; _____Important Position ______;
         WKingpos db 7,5,60
         BKingpos db 3 dup(?)
