@@ -118,6 +118,7 @@ DrawImg     PROC        FAR ;al = peice di = startPoint
                                 skip:   inc di;update cursor
                                         inc bx;update pixel of img
                                 loop    lp2
+                                
                                 add di, 320-imageWidth;return to first col next row
                                 pop cx
                         loop lp1
@@ -475,7 +476,7 @@ MvePieceToGraphics      PROC    FAR;si = playerNumber, al = peice =====> di = po
                         pusha
                         mov al, board[bx]
                         mov di, killedPeicePos
-                        CALL DrawImg
+                        CALL DrawImg            ;di = position , al = peice
                         add killedPeicePos, 23
                         add killedPeiceCol, 1
                         cmp killedPeiceCol, 6

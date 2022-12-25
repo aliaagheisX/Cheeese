@@ -61,13 +61,15 @@
         ;____ players _____;
         player1         equ 1
         player2         equ 2
+
         playerMoveToChoosePeice equ 0
         playerMoveToChooseAction equ 1
         PlayerLose equ 2
         PlayerWin equ 3
         PlayerEndedGame equ 4
 
-        isGameEnded db 0
+        isGameEnded db 0 ;1 => game ended & 2 game ended by player
+        
         isKingCheck db ?, 0, 0
         playersState db ?, playerMoveToChoosePeice, playerMoveToChoosePeice
         playerCells db ?, 0, 56
@@ -104,7 +106,9 @@
         WkingCheck db ? ,4 ,60
         checkmes db      "be carefull there  is a check$"
         Clearcheckmes db '                              $'
-
+        player1WinMess  db "Black Player Win!! $"
+        player2WinMess  db "White Player Win!! $"
+        prntExitMess  db "click f4 to exit the game $"
 
 Bpawn DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 
  DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -1329,7 +1333,32 @@ ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't
                 RET
 ChKTime         ENDP
 ;========================Check============================
-
+ClearMessagePr  PROC    FAR
+        pusha
+                        mov bh,0       
+                        mov dh, 23;row
+                        mov dl, 00
+                        mov ah, 2
+                        int 10h
+                        mov di,0
+                        printclear2:
+                        mov al,Clearcheckmes[di]
+                                mov ah, 09h
+                                mov bh, 0
+                                mov bl, 0fh
+                                mov cx, 1
+                                int 10h
+                                inc dl
+                                mov bh, 0;pg number
+                                mov dh, 23;row
+                                mov ah, 2
+                                int 10h
+                                inc di
+                                cmp Clearcheckmes[di],'$'
+                                jnz printclear2    
+        popa
+                REt
+ClearMessagePr  ENDP
 PrntChk         PROC    FAR
                 mov ah, 0
                 or ah, isKingCheck[1]
@@ -1360,29 +1389,7 @@ PrntChk         PROC    FAR
                                 jnz printclear1    
                 popa
                 RET
-       clrKng: pusha
-                        mov bh,0       
-                        mov dh, 23;row
-                        mov dl, 00
-                        mov ah, 2
-                        int 10h
-                        mov di,0
-                        printclear2:
-                        mov al,Clearcheckmes[di]
-                                mov ah, 09h
-                                mov bh, 0
-                                mov bl, 0fh
-                                mov cx, 1
-                                int 10h
-                                inc dl
-                                mov bh, 0;pg number
-                                mov dh, 23;row
-                                mov ah, 2
-                                int 10h
-                                inc di
-                                cmp Clearcheckmes[di],'$'
-                                jnz printclear2    
-        popa
+       clrKng: CALL ClearMessagePr
                 RET
 PrntChk         ENDP
 
@@ -1662,7 +1669,11 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 mov isGameEnded, 1
         skipKingDead:        mov board[bx], al
 EXITMVEPEICE:   CALL ClrHighlightedMvs
-                mov playersState[si], playerMoveToChoosePeice
+                cmp isGameEnded, 1
+                jne chngState
+                popa
+                RET
+        chngState:        mov playersState[si], playerMoveToChoosePeice
                 popa
                 RET
 MovePeiceFromTo ENDP
@@ -1798,6 +1809,114 @@ GetCurrTime     ENDP
 ;==========================================================================;
 ;==========================================================================;
 
+PrntMsgWIN1         PROC FAR ;bx = offset of message
+        pusha
+                CALL ClearMessagePr
+                mov di,0
+                mov dl, 0
+                printPV3:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 23;row
+                        mov ah, 2
+                        int 10h
+                        
+
+                        mov al,player1WinMess[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 04h     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp player1WinMess[di],'$'
+                        jne printPV3
+                popa
+                RET
+PrntMsgWIN1         ENDP
+
+
+PrntMsgWIN2         PROC FAR ;bx = offset of message
+        pusha
+                CALL ClearMessagePr
+                mov di,0
+                mov dl, 0
+                printPV4:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 23;row
+                        mov ah, 2
+                        int 10h
+                        
+
+                        mov al,player2WinMess[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 04h     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp player2WinMess[di],'$'
+                        jne printPV4
+                popa
+                RET
+PrntMsgWIN2         ENDP
+
+
+PrntExt         PROC FAR ;bx = offset of message
+pusha
+                mov di,0
+                mov dl, 0
+                printPV5:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 24;row
+                        mov ah, 2
+                        int 10h
+                        
+
+                        mov al,prntExitMess[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 0fh     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp prntExitMess[di],'$'
+                        jne printPV5
+                popa
+                RET
+PrntExt         ENDP
+
+
+ENDgameWin      PROC      FAR
+
+                cmp playersState[1], PlayerWin
+                jne plyer2WIN
+                CALL PrntMsgWIN1
+                jmp WtTillExt
+
+        plyer2WIN: CALL PrntMsgWIN2
+
+        WtTillExt:      CALL PrntExt
+        lpWtTil:        mov ah, 1
+                        int 16h
+                        jz lpWtTil
+
+                        mov ah, 0
+                        int 16h
+                        cmp ah,3Eh
+                        jne lpWtTil
+                RET
+ENDgameWin      ENDP
+
+
 StartGame PROC FAR
         ; ____ inialize video mode ____;
         mov      ax, 0a000h                        ;for inline drawing
@@ -1809,17 +1928,20 @@ StartGame PROC FAR
         ; ____ inialize video mode ____;
         
         CALL DrawBoard                          ;inialize draw board
-
         ;==== inialize timer
         mov ah, 2ch
         int 21h
         mov StartMin, cl
         mov StartSec, dh
+        
 MAIN_LOOP:
         ;================= Chk if ended ================;
 noActGM: cmp isGameEnded, 1
-        jne ContGame
-        CALL EndGameState
+         jb ContGame            ;if blew one => not ended by player or kings
+         cmp isGameEnded, 1
+         jne finishGame
+         CALL ENDgameWin
+        finishGame: CALL EndGameState
         RET
         ;================= Continue Game ================;
         
@@ -1909,7 +2031,7 @@ ContGame: CALL GetCurrTime
         MainEndGame:            cmp ah,3Eh      ;chk if clik f4
                                 jne shrt2
                                 mov playersState[1], PlayerEndedGame
-                                mov isGameEnded, 1
+                                mov isGameEnded, 2
 
         jmp shrt2
 StartGame ENDP
