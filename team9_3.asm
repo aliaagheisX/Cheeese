@@ -1,6 +1,7 @@
 PUBLIC DrawBoard, DrawSquareBord, MvePlayerFromGraphics 
 PUBLIC DrawHighlightedMvs, ClrHighlightedMvs, MvePieceToGraphics, MvePieceFromGraphics
 PUBLIC DrawPlayers
+PUBLIC killedPeicePos ,killedPeiceRow, killedPeiceCol 
 
 EXTRN color:BYTE
 EXTRN board:BYTE

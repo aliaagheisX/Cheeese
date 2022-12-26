@@ -26,6 +26,11 @@
         EXTRN MvePieceToGraphics:FAR
         EXTRN MvePieceFromGraphics:FAR
         EXTRN DrawPlayers:FAR
+        EXTRN killedPeicePos:WORD
+        EXTRN killedPeiceRow:BYTE
+        EXTRN killedPeiceCol:BYTE
+
+        
         .286
         .MODEL HUGE
         .STACK 256
@@ -101,9 +106,6 @@
         peiceTimer     dw  64 dup(0)
         TmDiff equ 3
         ; _____Important Position ______;
-        WKingpos db 7,5,60
-        BKingpos db 3 dup(?)
-        WkingCheck db ? ,4 ,60
         checkmes db      "be carefull there  is a check$"
         Clearcheckmes db '                              $'
         player1WinMess  db "Black Player Win!! $"
@@ -429,10 +431,12 @@ EndGameState    PROC FAR
 ;========= inialize board =========;
                 mov cx, 64      ;clear board
                 mov si, 0
+                mov di, 0
         inializeBoard:  mov board[si], 0
-                mov peiceTimer[si], 0
+                mov peiceTimer[di], 0;dw
                 mov validateMoves[si], 0
                 inc si
+                add di, 2
                 loop inializeBoard
 
                 mov board[0], black+rook
@@ -486,7 +490,20 @@ EndGameState    PROC FAR
 
                 mov PlayerPos[2], 0
                 mov PlayerPos[4], 51520
-                
+                ;======= king and check
+                mov isKingCheck[1], 0
+                mov isKingCheck[2], 0
+                mov kingsCells[1], 4
+                mov kingsCells[2], 60
+                mov kingsRows[1], 0
+                mov kingsRows[2], 7
+                mov kingsCols[1], 4
+                mov kingsCols[2], 4
+        ;========================================
+                mov killedPeicePos, 184
+                mov killedPeiceRow, 0 
+                mov killedPeiceCol, 0 
+
         RET
 EndGameState    ENDP
 
