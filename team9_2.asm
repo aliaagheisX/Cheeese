@@ -593,17 +593,19 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
 
         PaP1:           cmp playerRows[si], 7
                         je EXITPP1
-                PwnMv1: cmp playerRows[si], 1           ;down twice in first move
-                        jne PwnMv2
-                        mov al, board[di+16]
-                        cmp al, emptyCell
-                        jne PwnMv2
-                        mov validateMoves[di+16], dl
-                PwnMv2: ;down one if
+                PwnMv1: ;down one if
                         mov al, board[di+8]
                         cmp al, emptyCell
-                        jne PwnMv3
+                        jne PwnMv3                      ;skip down twice if not valid
                         mov validateMoves[di+8], dl
+                PwnMv2: ;down twice if
+                        cmp playerRows[si], 1           ;down twice in first move
+                        jne PwnMv3
+                        mov al, board[di+16]
+                        cmp al, emptyCell
+                        jne PwnMv3
+                        mov validateMoves[di+16], dl
+                        
 
                 PwnMv3: ;right down
                         cmp PlayerCols[si], 7
@@ -634,17 +636,19 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                 RET
         PaP2:           cmp playerRows[si], 0
                         je EXITPP2
-                PwnMv12: cmp playerRows[si], 6          ;up twice in first move
-                        jne PwnMv22
-                        mov al, board[di-16]
-                        cmp al, emptyCell
-                        jne PwnMv22
-                        mov validateMoves[di-16], dl
-                PwnMv22: ;up one if
+                PwnMv12: ;up one if
                         mov al, board[di-8]
                         cmp al, emptyCell
                         jne PwnMv32
                         mov validateMoves[di-8], dl
+                        
+                PwnMv22:;up twice if
+                        cmp playerRows[si], 6          ;up twice in first move
+                        jne PwnMv32
+                        mov al, board[di-16]
+                        cmp al, emptyCell
+                        jne PwnMv32
+                        mov validateMoves[di-16], dl
 
                 PwnMv32: ;down -> left
                         cmp PlayerCols[si], 0
