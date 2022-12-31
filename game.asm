@@ -528,20 +528,24 @@ RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 RET
 RowColToCell ENDP 
 
-RowColToStartPos PROC   FAR;al =row    cl=col   =>di=StartPos
+RowColToStartPos PROC   FAR
+;al =row    cl=col   =>di=StartPos
 
         push ax
         push bx
         push cx
         push dx
 
-        mov dl,al               ;dl = row
+        mov ah,0
+        mov di,ax
         mov al,boardWidth       ;al = width|hight
         mul cl                  ;al = width*col
         mov bx,ax               ;bx = width*col
 
+        mov dx,0
         mov ax,320*boardWidth   ;ax=320*hight
-        mul dx                  ;ax=320*hight*row
+        mul di                  ;ax=320*hight*row
+
 
         mov di,ax               ;di=320*row*hight
         add  di,bx              ;di=320*row*hight+width*col
@@ -1360,6 +1364,7 @@ MoveDown        ENDP ;si = player numbers
 ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't move]
                 push    ax
                 push    dx
+                push di
                         cmp peiceTimer[bx], 0   ;check if never move
                         je STime                ;if yes return Succes
 
@@ -1374,11 +1379,13 @@ ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't
                         cmp dh, al              ;chk CurrSec-3 >= Stop sec
                         jae STime                ;if true succ & leave
                         mov cx,0                ;else set cx=0 & leave
+                        pop di
                         pop dx
                         pop ax
                         RET 
 
         STime:  mov cx, 1
+                pop di
                 pop dx
                 pop ax
                 RET
@@ -1676,6 +1683,7 @@ AddCellToWait   PROC FAR                ;si
                 shl si, 1
                 mov di, playerPos[si]
                 CALL DrawSquareBordSm
+
                 ;==================== 
                 popa
                 RET
@@ -1683,14 +1691,18 @@ AddCellToWait   ENDP
 
 
 ClrCharInStPos  PROC    FAR ;(di = startPos; al = rows; si = cell)
+                      push ax
                         ;=========== get color of cell that player stand on =====;
+                               push bx
                                 mov bx, si              ;bl = cell
                                 add bl, al              ;bl= row + cell
                                 and bl, 1               ;if odd => cell color index 1 
                                 mov bh, 0               ;if even=> cell color index 0
                                 mov al, color[bx]       ;load color
+                                pop bx
                         ;=========== get color of cell that player stand on =====;
                         CALL DrawSquareBordSm
+                        pop ax
                 RET
 ClrCharInStPos  ENDP
 
@@ -1705,6 +1717,7 @@ UpdateCellWait  PROC    FAR
                 mov si, ax   ;si = index of curr [r, c] time array
                 mov cx, timerArray[si]  ;ch=row, cl =col
                 mov al, ch              ;
+                mov di,cx
                 CALL RowColToCell       ;(al = row, cl = col) =>si = cell number
                 mov bx, si              ;
                 push cx
@@ -1712,6 +1725,8 @@ UpdateCellWait  PROC    FAR
                 cmp cx, 1               ;chk if can move
                 pop cx
                 jne EXITUpdateCellWait  ;if can't mov
+                mov cx,di
+                mov al,ch
                 CALL RowColToStartPos   ;al =row    cl=col   =>di=StartPos
                 CALL ClrCharInStPos
                 ;;;=========== call graphics ==============;;;
@@ -1742,7 +1757,8 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
 
                 ;======= handel move cell **from  ======;
                 ;== Graphically
-        startMvePeiceF:        CALL MvePieceFromGraphics     ;out==>bl = cell
+        startMvePeiceF:        CALL 
+             ;out==>bl = cell
                 ;== Logically
                 mov bh, 0
                 mov peiceTimer[bx], 0         ;return time state of cell
@@ -2037,6 +2053,7 @@ ENDgameWin      ENDP
 
 
 StartGame PROC FAR
+
         ; ____ inialize video mode ____;
         mov      ax, 0a000h                        ;for inline drawing
         mov      es, ax
@@ -2053,10 +2070,11 @@ StartGame PROC FAR
         mov StartMin, cl
         mov StartSec, dh
         
-MAIN_LOOP:
 
+MAIN_LOOP:
         ;================= Chk if ended ================;
-noActGM: cmp isGameEnded, 1
+noActGM:        
+         cmp isGameEnded, 1
          jb ContGame            ;if blew one => not ended by player or kings
          cmp isGameEnded, 1
          jne finishGame
@@ -2065,7 +2083,9 @@ noActGM: cmp isGameEnded, 1
         RET
         ;================= Continue Game ================;
         
-ContGame: CALL GetCurrTime
+ContGame:
+        CALL UpdateCellWait
+        CALL GetCurrTime
         
         mov ah, 1
         int 16h
@@ -2073,7 +2093,6 @@ ContGame: CALL GetCurrTime
 
         mov ah, 0
         int 16h
-        CALL UpdateCellWait
         ;or al, 00100000b ;capital letter
          mov si, 1
         cmp al, 'w'
