@@ -17,7 +17,6 @@
         PUBLIC StartGame
         PUBLIC boardWidth, imageWidth, color, board, Bpawn, validateMoves, highlightPeiceMvs
         PUBLIC playerCells, playerCols, playerRows, PlayerPos, highlightColor, PlayerSelectedCell,PlayerSelectedRow, PlayerSelectedPos
-        EXTRN DrawGrid:FAR
         EXTRN DrawBoard:FAR
         EXTRN DrawSquareBord:FAR
         EXTRN DrawSquareBordSm:FAR
@@ -36,8 +35,8 @@
         .MODEL HUGE
         .STACK 256
 .DATA
-
-
+;_______sending&recieving__________;
+var db '$'
 ;__________Peices________;
 
         color          db  31, 9
@@ -1758,7 +1757,7 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
 
                 ;======= handel move cell **from  ======;
                 ;== Graphically
-        startMvePeiceF:        CALL 
+        startMvePeiceF:        CALL MvePieceFromGraphics 
              ;out==>bl = cell
                 ;== Logically
                 mov bh, 0
@@ -2101,7 +2100,7 @@ noActGM:
         in al , dx
         mov VALUE , al
         mov si,2
-        continue:
+        continue:;no recieve
          cmp isGameEnded, 1
          jb ContGame            ;if blew one => not ended by player or kings
          cmp isGameEnded, 1
@@ -2112,11 +2111,12 @@ noActGM:
         ;================= Continue Game ================;
         
 ContGame:
+  CALL UpdateCellWait
+        CALL GetCurrTime
         cmp si,2
         jz Line_11
-        CALL UpdateCellWait
-        CALL GetCurrTime
-        
+      
+      ;checking if i am transmiting
         mov ah, 1
         int 16h
         mov ah, 0
@@ -2125,9 +2125,10 @@ ContGame:
         mov dx , 3FDH ; Line Status Register
         In al , dx ;Read Line Status
         AND al , 00100000b
+        mov var,ah
         JZ noActGM
         mov dx , 3F8H ; Transmit data register
-        mov al,ah
+        mov al,var
         out dx , al
         mov si,1
         Line_11:
@@ -2154,7 +2155,7 @@ ContGame:
         shrt2:          jmp MAIN_LOOP
                         
         pressZero:              cmp   al, '0'
-                                jne   MainEndGame
+                                jne   chat
                                 cmp   playersState[2], playerMoveToChoosePeice
                                 jne   stateLabel2
                                 CALL  SelectValidationOfPeice
@@ -2166,16 +2167,21 @@ ContGame:
                         Call ChecKKing
                         mov si, 1       ;black moved => mov peice then check check another player
                         Call ChecKKing
-                        jmp   shrtMainLoop
+                        jmp   shrt2
         chat:            cmp ah,3Eh      ;chk if clik f4
-                                jne Go_Chat
+                                jne goch
                                 mov playersState[1], PlayerEndedGame
                                 mov isGameEnded, 2
 
         jmp shrt2
+goch: 
+ret
 StartGame ENDP
-;_______ inialize board ___________;   
+;_______ inialize board ___________;  
+Go_Chat proc far
 
+ret
+Go_Chat endp
 
 
 ;; [move => cell] XOR validateMoves[cell], player

@@ -3,6 +3,7 @@ PUBLIC DrawHighlightedMvs, ClrHighlightedMvs, MvePieceToGraphics, MvePieceFromGr
 PUBLIC DrawPlayers
 PUBLIC killedPeicePos ,killedPeiceRow, killedPeiceCol 
 
+
 EXTRN color:BYTE
 EXTRN board:BYTE
 EXTRN Bpawn:BYTE
