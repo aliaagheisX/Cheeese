@@ -2054,6 +2054,7 @@ StartGame PROC FAR
         mov StartSec, dh
         
 MAIN_LOOP:
+
         ;================= Chk if ended ================;
 noActGM: cmp isGameEnded, 1
          jb ContGame            ;if blew one => not ended by player or kings
@@ -2063,9 +2064,9 @@ noActGM: cmp isGameEnded, 1
         finishGame: CALL EndGameState
         RET
         ;================= Continue Game ================;
-        CALL UpdateCellWait
+        
 ContGame: CALL GetCurrTime
-
+        CALL UpdateCellWait
         mov ah, 1
         int 16h
         jz noActGM
