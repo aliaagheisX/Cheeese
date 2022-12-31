@@ -1666,8 +1666,8 @@ AddCellToWait   PROC FAR                ;si
                 mov bl, tailTimeArray  
                 mov bh, 0 
                 mov timerArray[bx], ax
-                add tailTimeArray, 1
-                cmp tailTimeArray, 34
+                add tailTimeArray, 2
+                cmp tailTimeArray, 68;34*2
                 jne extAddCell
                 mov tailTimeArray, 0
         extAddCell:
@@ -1716,8 +1716,8 @@ UpdateCellWait  PROC    FAR
                 CALL ClrCharInStPos
                 ;;;=========== call graphics ==============;;;
                 
-                add headTimeArray, 1    ;delete by update head
-                cmp headTimeArray, 34   ;if head overflow return to 0
+                add headTimeArray, 2    ;delete by update head
+                cmp headTimeArray, 68   ;if head overflow return to 0
                 jmp loopOnWaitCell      ;if not continue without update head for overflow
                 mov headTimeArray, 0    ;update for overflow
                 jmp loopOnWaitCell       ;
@@ -2066,14 +2066,14 @@ noActGM: cmp isGameEnded, 1
         ;================= Continue Game ================;
         
 ContGame: CALL GetCurrTime
-        CALL UpdateCellWait
+        
         mov ah, 1
         int 16h
         jz noActGM
 
         mov ah, 0
         int 16h
-
+        CALL UpdateCellWait
         ;or al, 00100000b ;capital letter
          mov si, 1
         cmp al, 'w'
