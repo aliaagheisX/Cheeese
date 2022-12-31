@@ -1,4 +1,4 @@
-PUBLIC DrawBoard, DrawSquareBord, MvePlayerFromGraphics 
+PUBLIC DrawBoard, DrawSquareBord,DrawSquareBordSm, MvePlayerFromGraphics 
 PUBLIC DrawHighlightedMvs, ClrHighlightedMvs, MvePieceToGraphics, MvePieceFromGraphics
 PUBLIC DrawPlayers
 PUBLIC killedPeicePos ,killedPeiceRow, killedPeiceCol 
@@ -43,11 +43,11 @@ varkilled db ?
 
         boardWidth     equ 23
         imageWidth     equ 23
+        imageWidthSm     equ 7
         emptyCell     equ 0
-        killedPeicePos dw 184 ;23*8
+        killedPeicePos dw 20664 ;23*8
         killedPeiceRow db 0 ;23*8
         killedPeiceCol db 0 ;23*8
-
 .CODE
 
 
@@ -86,6 +86,8 @@ loop lr
             popa
             RET
 DrawGrid ENDP 
+
+
 
 DrawImg     PROC        FAR ;al = peice di = startPoint
                                 cmp ax, emptyCell ;check if empty cell
@@ -127,6 +129,32 @@ DrawImg     PROC        FAR ;al = peice di = startPoint
         RET
 DrawImg ENDP 
 
+
+DrawSquareBordSm PROC    FAR ;di = start position, al = highlight color 
+                pusha
+                ;=========== draw first row ==========;
+                add di, 320+1   
+                mov cx, boardWidth-2
+                REP STOSB
+                
+                ;=========== draw columns ==========;
+                add di, 320-boardWidth+2 ;to return di to first col next row
+                mov cx, boardWidth-4   ;number of pixels of one column to draw
+        DWSQ3:  STOSB                  ;draw pixel in first col
+                add di, boardWidth-4   ;update pos for nxt col
+                STOSB                  ;draw pixel in sec col
+                add di, 320-boardWidth+2 ;update di to first col next row
+        loop DWSQ3
+
+
+                ;=========== draw last row ==========;
+                mov cx, boardWidth-2
+                REP STOSB
+
+        popa
+        RET
+DrawSquareBordSm ENDP 
+
 DrawSquareBord PROC    FAR ;di = start position, al = highlight color 
                 pusha
                 ;=========== draw first row ==========;
@@ -158,9 +186,10 @@ DrawBoard       PROC    FAR ;inialize first with all peices
                 mov al,15  ; scroll by 1 line
                 mov bh,3h  ; normal video attribute
 
-                mov ch,0  ; upper left row after you:
+
+                mov ch,8  ; upper left row after you:
                 mov cl,23  ; upper left col
-                mov dh,14 ; lower right row
+                mov dh,22 ; lower right row
                 mov dl,39 ; lower right col
                 int 10h
                 popa
@@ -477,7 +506,7 @@ MvePieceToGraphics      PROC    FAR;si = playerNumber, al = peice =====> di = po
                         pusha
                         mov al, board[bx]
                         mov di, killedPeicePos
-                        CALL DrawImg            ;di = position , al = peice
+                        CALL DrawImg          ;di = position , al = peice
                         add killedPeicePos, 23
                         add killedPeiceCol, 1
                         cmp killedPeiceCol, 6

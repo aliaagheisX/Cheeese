@@ -1,26 +1,17 @@
 from PIL import Image
 files = [
-    'Bpawn',
-    'Wpawn',
+    'b',
+    'k',
     
-    'Brook',
-    'Wrook',
+    'KK',
+    'p',
     
-    'Bknight', 
-    'Wknight',
-    
-    'Bbishop', 
-    'Wbishop', 
-    
-    'Bqueen',
-    'Wqueen',
-    
-    'Bking',
-    'Wking',
+    'q', 
+    'r',
 ]
 for filename in files:
     
-    im = Image.open("23/" + filename + ".png").convert('LA') ####greyscal, alpha
+    im = Image.open("s/" + filename + ".png").convert('LA') ####greyscal, alpha
     pixels = list(im.getdata())
     px =  []
     for elm in pixels:
@@ -31,14 +22,14 @@ for filename in files:
         if pixels[c][1] == 0:
             C.append(4)
         elif  pixels[c][0] - 0 < 255 - pixels[c][0]:
-            C.append(16)
-        else :C.append(15)
+            C.append(21)
+        else :C.append(21)
 
     StrC = f"{filename} DB "
 
     # Split the array into multiple lines cause it will be too long for one line for the tasm/masm.
     for i in range(len(C)):
-        if i!=0 and i % 23 == 0:
+        if i!=0 and i % 7 == 0:
             StrC = StrC + str(C[i]) + " " + "\n DB "
         else:
             StrC = StrC + str(C[i]) + ", "

@@ -20,6 +20,7 @@
         EXTRN DrawGrid:FAR
         EXTRN DrawBoard:FAR
         EXTRN DrawSquareBord:FAR
+        EXTRN DrawSquareBordSm:FAR
         EXTRN MvePlayerFromGraphics:FAR
         EXTRN DrawHighlightedMvs:FAR
         EXTRN ClrHighlightedMvs:FAR
@@ -111,6 +112,11 @@
         player1WinMess  db "Black Player Win!! $"
         player2WinMess  db "White Player Win!! $"
         prntExitMess  db "click f4 to exit the game $"
+
+        timerArray dw 33 dup(0);[row,[4]col[4]] than have still time
+                                ;to print
+        headTimeArray db 0
+        tailTimeArray db 0
 
 Bpawn DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 
  DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -522,6 +528,30 @@ RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 RET
 RowColToCell ENDP 
 
+RowColToStartPos PROC   FAR;al =row    cl=col   =>di=StartPos
+
+        push ax
+        push bx
+        push cx
+        push dx
+
+        mov dl,al               ;dl = row
+        mov al,boardWidth       ;al = width|hight
+        mul cl                  ;al = width*col
+        mov bx,ax               ;bx = width*col
+
+        mov ax,320*boardWidth   ;ax=320*hight
+        mul dx                  ;ax=320*hight*row
+
+        mov di,ax               ;di=320*row*hight
+        add  di,bx              ;di=320*row*hight+width*col
+
+        pop dx       
+        pop cx       
+        pop bx       
+        pop ax       
+        RET
+RowColToStartPos ENDP 
 
 
 ;________ __________ ___________;
@@ -1629,6 +1659,73 @@ RET
 SelectValidationOfPeice ENDP
 
 
+AddCellToWait   PROC FAR                ;si
+                pusha
+                mov al, playerCols[si]
+                mov ah, playerRows[si]
+                mov bl, tailTimeArray  
+                mov bh, 0 
+                mov timerArray[bx], ax
+                add tailTimeArray, 1
+                cmp tailTimeArray, 34
+                jne extAddCell
+                mov tailTimeArray, 0
+        extAddCell:
+                 ;====================
+                mov al, 30h
+                shl si, 1
+                mov di, playerPos[si]
+                CALL DrawSquareBordSm
+                ;==================== 
+                popa
+                RET
+AddCellToWait   ENDP
+
+
+ClrCharInStPos  PROC    FAR ;(di = startPos; al = rows; si = cell)
+                        ;=========== get color of cell that player stand on =====;
+                                mov bx, si              ;bl = cell
+                                add bl, al              ;bl= row + cell
+                                and bl, 1               ;if odd => cell color index 1 
+                                mov bh, 0               ;if even=> cell color index 0
+                                mov al, color[bx]       ;load color
+                        ;=========== get color of cell that player stand on =====;
+                        CALL DrawSquareBordSm
+                RET
+ClrCharInStPos  ENDP
+
+;delete if not
+UpdateCellWait  PROC    FAR
+                pusha
+        loopOnWaitCell: 
+                mov al, headTimeArray
+                cmp al, tailTimeArray   ;if head = tail => mean empty 
+                je EXITUpdateCellWait   ;if exit
+                mov ah, 0
+                mov si, ax   ;si = index of curr [r, c] time array
+                mov cx, timerArray[si]  ;ch=row, cl =col
+                mov al, ch              ;
+                CALL RowColToCell       ;(al = row, cl = col) =>si = cell number
+                mov bx, si              ;
+                push cx
+                CALL ChKTime            ;board cell = bx >>> cx=1[can move] | cx=0[can't move]
+                cmp cx, 1               ;chk if can move
+                pop cx
+                jne EXITUpdateCellWait  ;if can't mov
+                CALL RowColToStartPos   ;al =row    cl=col   =>di=StartPos
+                CALL ClrCharInStPos
+                ;;;=========== call graphics ==============;;;
+                
+                add headTimeArray, 1    ;delete by update head
+                cmp headTimeArray, 34   ;if head overflow return to 0
+                jmp loopOnWaitCell      ;if not continue without update head for overflow
+                mov headTimeArray, 0    ;update for overflow
+                jmp loopOnWaitCell       ;
+       
+                EXITUpdateCellWait:
+                popa
+                RET
+UpdateCellWait  ENDP
 
 MovePeiceFromTo PROC    FAR ;si = playerNumber
                 pusha
@@ -1679,6 +1776,7 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
         skpKng: CALL MvePieceToGraphics      ;out ===> bx = cell
                 ;== Logically
                 CALL SetTime                    ;(bx = cell) => peiceTime[bx] = curr time
+                CALL AddCellToWait
                 mov dl, board[bx]               ;get peice type that killed
                 and dl, peice
                 cmp dl, king                    ;chk if king
@@ -1965,7 +2063,7 @@ noActGM: cmp isGameEnded, 1
         finishGame: CALL EndGameState
         RET
         ;================= Continue Game ================;
-        
+        CALL UpdateCellWait
 ContGame: CALL GetCurrTime
 
         mov ah, 1
@@ -2059,30 +2157,6 @@ StartGame ENDP
 ;_______ inialize board ___________;   
 
 
-RowColToStartPos PROC ;al =row    cl=col   =>di=StartPos
-
-        push ax
-        push bx
-        push cx
-        push dx
-
-        mov dl,al               ;dl = row
-        mov al,boardWidth       ;al = width|hight
-        mul cl                  ;al = width*col
-        mov bx,ax               ;bx = width*col
-
-        mov ax,320*boardWidth   ;ax=320*hight
-        mul dx                  ;ax=320*hight*row
-
-        mov di,ax               ;di=320*row*hight
-        add  di,bx              ;di=320*row*hight+width*col
-
-        pop dx       
-        pop cx       
-        pop bx       
-        pop ax       
-        RET
-RowColToStartPos ENDP 
 
 ;; [move => cell] XOR validateMoves[cell], player
 
