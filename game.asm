@@ -116,7 +116,7 @@ var db '$'
                                 ;to print
         headTimeArray db 0
         tailTimeArray db 0
-        VALUE db ?
+         VALUE DB '$$'
 
 Bpawn DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 
  DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -2052,6 +2052,7 @@ ENDgameWin      PROC      FAR
 ENDgameWin      ENDP
 
 port_initializatiion PROC FAR
+pusha 
  mov dx,3fbh ; Line Control Register
  mov al,10000000b ;Set Divisor Latch Access Bit
  out dx,al 
@@ -2064,8 +2065,21 @@ port_initializatiion PROC FAR
  mov dx,3fbh
  mov al,00011011b
  out dx,al
+ popa
+ ret
 port_initializatiion EndP
-
+SEND            PROC
+                pusha
+                mov dx , 3FDH 
+        AG:     in al, dx       ;Read Line Status
+                AND al , 00100000b
+                JZ AG
+                mov dx , 3F8H ; Transmit data register
+                mov al,VALUE
+                out dx , al 
+                popa
+                RET
+SEND            ENDP
 StartGame PROC FAR
 
         Call port_initializatiion
@@ -2088,14 +2102,28 @@ StartGame PROC FAR
 
 MAIN_LOOP:
         
+
+        
         ;================= Chk if ended ================;
 noActGM:    
+ CALL UpdateCellWait
+        CALL GetCurrTime
+        mov ah, 1
+        int 16h
+        jz recieveletter
+        mov ah, 0
+        int 16h
+        mov VALUE, ah
+        CALL SEND
+        mov si,1
+        jmp continue
+
         ;===========Recieve from the othe player========;
-        mov si,3
+recieveletter:    mov si,3
         mov dx , 3FDH
         in al , dx
         AND al , 1
-        JZ continue
+        JZ noActGM
         mov dx , 03F8H
         in al , dx
         mov VALUE , al
@@ -2111,28 +2139,10 @@ noActGM:
         ;================= Continue Game ================;
         
 ContGame:
-  CALL UpdateCellWait
-        CALL GetCurrTime
-        cmp si,2
-        jz Line_11
-      
-      ;checking if i am transmiting
-        mov ah, 1
-        int 16h
-        mov ah, 0
-        int 16h
-        jz noActGM
-        mov dx , 3FDH ; Line Status Register
-        In al , dx ;Read Line Status
-        AND al , 00100000b
-        mov var,ah
-        JZ noActGM
-        mov dx , 3F8H ; Transmit data register
-        mov al,var
-        out dx , al
-        mov si,1
-        Line_11:
-        ;or al, 00100000b ;capital letter        
+
+ 
+         mov ah, VALUE
+        
         pressUp:    
                         cmp ah, 48h
                         jne pressLeft
@@ -2154,13 +2164,13 @@ ContGame:
                         CALL MoveRight
         shrt2:          jmp MAIN_LOOP
                         
-        pressZero:              cmp   al, '0'
+        pressZero:              cmp   ah, 11
                                 jne   chat
-                                cmp   playersState[2], playerMoveToChoosePeice
+                                cmp   playersState[si], playerMoveToChoosePeice
                                 jne   stateLabel2
                                 CALL  SelectValidationOfPeice
                                 jmp   shrt2
-        stateLabel2:            cmp   playersState[2], playerMoveToChooseAction
+        stateLabel2:            cmp   playersState[si], playerMoveToChooseAction
                                 jne   chat
                                 CALL  MovePeiceFromTo
                         mov si, 2       ;black moved => mov peice then check check another player
@@ -2168,9 +2178,9 @@ ContGame:
                         mov si, 1       ;black moved => mov peice then check check another player
                         Call ChecKKing
                         jmp   shrt2
-        chat:            cmp ah,3Eh      ;chk if clik f4
+        chat:           cmp ah,3Eh      ;chk if clik f4
                                 jne goch
-                                mov playersState[1], PlayerEndedGame
+                                mov playersState[si], PlayerEndedGame
                                 mov isGameEnded, 2
 
         jmp shrt2
