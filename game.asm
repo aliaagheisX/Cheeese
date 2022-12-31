@@ -117,6 +117,7 @@
                                 ;to print
         headTimeArray db 0
         tailTimeArray db 0
+        VALUE db ?
 
 Bpawn DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 
  DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -2051,9 +2052,24 @@ ENDgameWin      PROC      FAR
                 RET
 ENDgameWin      ENDP
 
+port_initializatiion PROC FAR
+ mov dx,3fbh ; Line Control Register
+ mov al,10000000b ;Set Divisor Latch Access Bit
+ out dx,al 
+ mov dx,3f8h
+ mov al,0ch
+ out dx,al
+ mov dx,3f9h
+ mov al,00h
+ out dx,al
+ mov dx,3fbh
+ mov al,00011011b
+ out dx,al
+port_initializatiion EndP
 
 StartGame PROC FAR
 
+        Call port_initializatiion
         ; ____ inialize video mode ____;
         mov      ax, 0a000h                        ;for inline drawing
         mov      es, ax
@@ -2072,8 +2088,20 @@ StartGame PROC FAR
         
 
 MAIN_LOOP:
+        
         ;================= Chk if ended ================;
-noActGM:        
+noActGM:    
+        ;===========Recieve from the othe player========;
+        mov si,3
+        mov dx , 3FDH
+        in al , dx
+        AND al , 1
+        JZ continue
+        mov dx , 03F8H
+        in al , dx
+        mov VALUE , al
+        mov si,2
+        continue:
          cmp isGameEnded, 1
          jb ContGame            ;if blew one => not ended by player or kings
          cmp isGameEnded, 1
@@ -2084,55 +2112,27 @@ noActGM:
         ;================= Continue Game ================;
         
 ContGame:
+        cmp si,2
+        jz Line_11
         CALL UpdateCellWait
         CALL GetCurrTime
         
         mov ah, 1
         int 16h
-        jz noActGM
-
         mov ah, 0
         int 16h
-        ;or al, 00100000b ;capital letter
-         mov si, 1
-        cmp al, 'w'
-        jne pressA
-        Call MoveUp
-        jmp noActGM
-        
-        pressA: cmp al, 'a'
-                jne pressS
-                CALL MoveLeft
-                shrt: jmp noActGM
-
-        pressS: cmp al, 's'
-                jne pressD
-                CALL MoveDown
-                jmp noActGM
-
-        pressD: cmp al, 'd'         ;right
-                jne pressQ
-                CALL MoveRight
-                jmp noActGM
-
-        pressQ:         cmp al, 'q'
-                        jne pressUp
-                        cmp playersState[1], playerMoveToChoosePeice
-                        jne stateLabel1
-                        CALL SelectValidationOfPeice
-                        jmp noActGM
-        stateLabel1:    cmp playersState[1], playerMoveToChooseAction
-                        jne noActGM
-                        CALL MovePeiceFromTo
-                        mov si, 2       ;black moved => mov peice then check check another player
-                        Call ChecKKing
-                        mov si, 1       ;black moved => mov peice then check check another player
-                        Call ChecKKing
-        shrtMainLoop:   jmp MAIN_LOOP
-                        ;_________ highlight moves _____;
-
-
-        pressUp:        mov si, 2       ;check another player
+        jz noActGM
+        mov dx , 3FDH ; Line Status Register
+        In al , dx ;Read Line Status
+        AND al , 00100000b
+        JZ noActGM
+        mov dx , 3F8H ; Transmit data register
+        mov al,ah
+        out dx , al
+        mov si,1
+        Line_11:
+        ;or al, 00100000b ;capital letter        
+        pressUp:    
                         cmp ah, 48h
                         jne pressLeft
                         CALL MoveUp
@@ -2151,7 +2151,7 @@ ContGame:
         pressRight:     cmp ah, 4dh
                         jne pressZero
                         CALL MoveRight
-        shrt2:          jmp shrt
+        shrt2:          jmp MAIN_LOOP
                         
         pressZero:              cmp   al, '0'
                                 jne   MainEndGame
@@ -2160,15 +2160,15 @@ ContGame:
                                 CALL  SelectValidationOfPeice
                                 jmp   shrt2
         stateLabel2:            cmp   playersState[2], playerMoveToChooseAction
-                                jne   MainEndGame
+                                jne   chat
                                 CALL  MovePeiceFromTo
-                                mov si, 2       ;black moved => mov peice then check check another player
+                        mov si, 2       ;black moved => mov peice then check check another player
                         Call ChecKKing
                         mov si, 1       ;black moved => mov peice then check check another player
                         Call ChecKKing
-                                jmp   shrtMainLoop
-        MainEndGame:            cmp ah,3Eh      ;chk if clik f4
-                                jne shrt2
+                        jmp   shrtMainLoop
+        chat:            cmp ah,3Eh      ;chk if clik f4
+                                jne Go_Chat
                                 mov playersState[1], PlayerEndedGame
                                 mov isGameEnded, 2
 
