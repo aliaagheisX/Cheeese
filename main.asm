@@ -411,7 +411,7 @@ returnHme:    CALL DrawMainScreen             ;main graphically
                 AND al , 1    
                 cmp al, 1       
                 jne MnLoop      ;if not continue looping
-
+                
                 mov dx , 03F8H  ;else get character in al|value
                 in al , dx
                 mov VALUE, al

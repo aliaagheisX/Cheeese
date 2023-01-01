@@ -17,6 +17,8 @@ EXTRN PlayerPos:WORD
 EXTRN PlayerSelectedPos:WORD
 EXTRN PlayerSelectedCell:BYTE
 EXTRN PlayerSelectedRow:BYTE
+EXTRN PlayerGameNumber:WORD
+
 
 .286
 .MODEL SMALL
@@ -234,13 +236,15 @@ DrawBoard       ENDP
 DrawPlayers     PROC    FAR
                 push ax
                 push di
+                push si
                 
+                mov si, PlayerGameNumber
+                shl si, 1
+                mov di, PlayerPos[si]
                 mov al, 4
-                mov di, PlayerPos[2]
-                CALL DrawSquareBord
-                mov di, PlayerPos[4]
                 CALL DrawSquareBord
 
+                pop si
                 pop di
                 pop ax
                 RET

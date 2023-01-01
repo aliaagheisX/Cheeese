@@ -13,6 +13,10 @@
                 ;  5    40 ..................................
                 ;  6    48 ..................................
                 ;  7    56..............................  63
+                ;==================================================
+                ;TODO
+                ;- don't draw another player move => miss things up
+                ;- exit for both on click f4
 
         PUBLIC StartGame
         PUBLIC boardWidth, imageWidth, color, board, Bpawn, validateMoves, highlightPeiceMvs
@@ -37,7 +41,9 @@
         .STACK 256
 .DATA
 ;_______sending&recieving__________;
-var db '$'
+
+from_against_player db '$'
+to_against_player db '$'
 ;__________Peices________;
 
         color          db  31, 9
@@ -57,7 +63,7 @@ var db '$'
         knight         equ 3
         bishop         equ 4
         queen          equ 5
-        king           equ 6
+        king           equ 6 
         ; ____ peice color ____ ;
         black          equ 8
         white          equ 0
@@ -68,6 +74,8 @@ var db '$'
         player1         equ 1
         player2         equ 2
 
+
+        PlayerClkF4             equ 128
         playerMoveToChoosePeice equ 0
         playerMoveToChooseAction equ 1
         PlayerLose equ 2
@@ -433,10 +441,42 @@ Wking DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
 .code
 
 
+port_initializatiion PROC FAR
+        pusha 
+        mov dx,3fbh ; Line Control Register
+        mov al,10000000b ;Set Divisor Latch Access Bit
+        out dx,al 
+        mov dx,3f8h
+        mov al,0ch
+        out dx,al
+        mov dx,3f9h
+        mov al,00h
+        out dx,al
+        mov dx,3fbh
+        mov al,00011011b
+        out dx,al
+        popa
+        ret
+port_initializatiion EndP
+SEND            PROC
+                pusha
+                mov dx , 3FDH 
+        AG:     in al, dx       ;Read Line Status
+                AND al , 00100000b
+                JZ AG
+                mov dx , 3F8H ; Transmit data register
+                mov al,VALUE
+                out dx , al 
+                popa
+                RET
+SEND            ENDP
+
+
+
 EndGameState    PROC FAR
 
                 
-;========= inialize board =========;
+        ;========= inialize board =========;
                 mov cx, 64      ;clear board
                 mov si, 0
                 mov di, 0
@@ -508,12 +548,15 @@ EndGameState    PROC FAR
                 mov kingsCols[1], 4
                 mov kingsCols[2], 4
         ;========================================
-                mov killedPeicePos, 184
+                mov killedPeicePos, 20664
                 mov killedPeiceRow, 0 
                 mov killedPeiceCol, 0 
 
         RET
 EndGameState    ENDP
+
+
+
 
 RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 push ax
@@ -1744,6 +1787,36 @@ UpdateCellWait  PROC    FAR
                 RET
 UpdateCellWait  ENDP
 
+
+
+
+
+
+
+SendMoveToAnotherPlayer PROC FAR
+                        pusha
+
+                        mov al, PlayerSelectedCell[si]
+                        mov VALUE, al
+                        CALL SEND
+
+                RcvLp:  mov dx , 3FDH   ; Line Status Register
+                        in al , dx      ;chk if i recived something
+                        AND al , 1    
+                        cmp al, 1       
+                        jne RcvLp      ;if not continue looping
+                        mov dx , 03F8H  ;else get character in al|value
+                        in al , dx
+
+                        mov al, playerCells[si]
+                        mov VALUE, al
+                        CALL SEND
+
+                        popa
+                        RET
+SendMoveToAnotherPlayer ENDP
+
+
 MovePeiceFromTo PROC    FAR ;si = playerNumber
                 pusha
                 ;=========== check if move validate =========;
@@ -1757,9 +1830,14 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 popa
                 RET
 
+
+                ;======= handel communication
+                startMvePeiceF: 
+                CALL SendMoveToAnotherPlayer
+                ;======= handel communication
                 ;======= handel move cell **from  ======;
                 ;== Graphically
-        startMvePeiceF:        CALL MvePieceFromGraphics 
+               CALL MvePieceFromGraphics 
              ;out==>bl = cell
                 ;== Logically
                 mov bh, 0
@@ -1814,6 +1892,110 @@ EXITMVEPEICE:   CALL ClrHighlightedMvs
                 popa
                 RET
 MovePeiceFromTo ENDP
+
+
+
+CellToRowCol            PROC FAR        ;al = cell => al = row , cl = col
+                        mov ah, 0
+                        mov bh, 8
+                        DIV bh          ;al = q = row
+                                        ;ah = rem = col
+                        mov cl, ah
+                        RET
+CellToRowCol            ENDP 
+
+
+UpdateAnotherPlayer     PROC FAR  
+                        pusha
+                        ;======= player from
+                        mov al,from_against_player
+                        mov PlayerSelectedCell[si],al
+                        Call CellToRowCol          ;
+                        Call RowColToStartPos      ;al =row    cl=col   =>di=StartPos
+                        mov PlayerSelectedRow[si],al
+                        shl si, 1
+                        mov PlayerSelectedPos[si],di
+                        shr si, 1
+                        ;====== player to
+                        mov al,to_against_player
+                        mov playerCells[si],al
+                        Call CellToRowCol
+                        Call RowColToStartPos      ;al =row    cl=col   =>di=StartPos
+                        mov playerRows[si], al
+                        mov playerCols[si], cl
+                        shl si, 1
+                        mov playerPos[si],di
+                        shr si, 1
+                        popa
+                        RET
+UpdateAnotherPlayer     ENDP
+
+
+
+MovePeiceFromToAnotherPlayer PROC    FAR ;si = playerNumber
+                pusha
+                
+                ;=========== check if move validate =========;
+                CALL UpdateAnotherPlayer
+                mov bh, 0
+                mov bl, playerCells[si]     ;bx = player cell
+                ;======= handel move cell **from  ======;
+                ;== Graphically
+                CALL MvePieceFromGraphics 
+                ;out==>bl = cell
+                ;== Logically
+                mov bh, 0
+                mov al, board[bx]             ;*********** al = peice that should move
+                mov board[bx], emptyCell      ;set empty cell
+                
+
+                ;======= handel move cell **to  ======;
+                ;== hande if pawn and about to promote
+                mov dl, al      ;copy peice 
+                and dl, 7       ;get peice  type only
+                cmp dl, pawn    ;chk if pawn
+                jne skpPwnR      ;if not pawn skip
+                cmp playerRows[si], 0        ;if first row 
+                je  PrmPwnR
+                cmp playerRows[si], 7        ; or last row
+                jne skpKngR                   ;he is pawn so skip king
+        PrmPwnR: or al, 4        ;transfer peice to queen by set third bit
+                jmp skpKngR
+        skpPwnR: cmp dl, king    ;chk if king
+                jne skpKngR
+                mov ah, playerCells[si]
+                mov kingsCells[si], ah
+
+                mov ah, playerCols[si]
+                mov kingsCols[si], ah
+
+                mov ah, playerRows[si]
+                mov kingsRows[si], ah
+                ;== Graphically
+        skpKngR: CALL MvePieceToGraphics      ;out ===> bx = cell
+                ;== Logically
+                mov dl, board[bx]               ;get peice type that killed
+                and dl, peice
+                cmp dl, king                    ;chk if king
+                jne skipKingDeadR
+                mov playersState[si], PlayerWin ;if king win
+                xor si, 3           ; to toggle the player number to change states
+                mov playersState[si], PlayerLose
+                xor si, 3           ;to return the number of the player again
+                mov isGameEnded, 1
+        skipKingDeadR:        mov board[bx], al
+                cmp isGameEnded, 1
+                jne chngStateR
+                popa
+                RET
+        chngStateR:
+                ;========== check for checkmate
+                mov si, PlayerGameNumber       ;black moved => mov peice then check check another player
+                Call ChecKKing
+               
+                popa
+                RET
+MovePeiceFromToAnotherPlayer ENDP
 
 ;================= timer =====================;
 
@@ -2053,36 +2235,6 @@ ENDgameWin      PROC      FAR
                 RET
 ENDgameWin      ENDP
 
-port_initializatiion PROC FAR
-        pusha 
-        mov dx,3fbh ; Line Control Register
-        mov al,10000000b ;Set Divisor Latch Access Bit
-        out dx,al 
-        mov dx,3f8h
-        mov al,0ch
-        out dx,al
-        mov dx,3f9h
-        mov al,00h
-        out dx,al
-        mov dx,3fbh
-        mov al,00011011b
-        out dx,al
-        popa
-        ret
-port_initializatiion EndP
-SEND            PROC
-                pusha
-                mov dx , 3FDH 
-        AG:     in al, dx       ;Read Line Status
-                AND al , 00100000b
-                JZ AG
-                mov dx , 3F8H ; Transmit data register
-                mov al,VALUE
-                out dx , al 
-                popa
-                RET
-SEND            ENDP
-
 
 ControllGame    PROC FAR        ;si, ax = value
         pressUp:    
@@ -2114,18 +2266,18 @@ ControllGame    PROC FAR        ;si, ax = value
         stateLabel2:            cmp   playersState[si], playerMoveToChooseAction
                                 jne   chkF4
                                 CALL  MovePeiceFromTo
-                                mov si, 2       ;black moved => mov peice then check check another player
-                                Call ChecKKing
-                                mov si, 1       ;black moved => mov peice then check check another player
                                 Call ChecKKing
                                 jmp   ExitControllGame
                 chkF4:          cmp ah,3Eh      ;chk if clik f4
                                 jne ExitControllGame
                                 mov playersState[si], PlayerEndedGame
                                 mov isGameEnded, 2
+                                MOV VALUE, PlayerClkF4
+                                CALL SEND
                 ExitControllGame:
                 RET
 ControllGame    ENDP        ;si, al = value
+
 
 StartGame PROC FAR
 
@@ -2147,50 +2299,9 @@ StartGame PROC FAR
         
 
 MAIN_LOOP:
-        ;================= Chk if ended ================;
-noActGM:    
-        CALL UpdateCellWait
-        CALL GetCurrTime
-        ;===== send
-        mov ah, 1
-        int 16h
-        jz recieveletter
-        mov ah, 0
-        int 16h
-        mov VALUE, ah
-        CALL SEND
-        mov si, PlayerGameNumber
-        CALL ControllGame
-        ;===========Recieve from the othe player========;
-recieveletter:    
-        mov dx , 3FDH   ; Line Status Register
-        in al , dx      ;chk if i recived something
-        AND al , 1    
-        cmp al, 1       
-        jne MAIN_LOOP      ;if not continue looping
-
-        mov dx , 03F8H  ;else get character in al|value
-        in al , dx
-        mov ah, al    
-        pusha   ;set  cur
-        mov dh, 39
-        mov dl, 0
-        mov bh, 0
-        mov ah, 2
-        int 10H
-        popa  
-        pusha           ;print
-        mov dl, ah
-        mov ah, 2
-        int 21h
-        popa
-        mov si,PlayerGameNumber
-        xor si,3
-        CALL ControllGame ;(ah = scan code)
-        
-        continue:;no recieve
+noActGM:        
          cmp isGameEnded, 1
-         jb MAIN_LOOP            ;if blew one => not ended by player or kings
+         jb ContGame            ;if blew one => not ended by player or kings
          cmp isGameEnded, 1
          jne finishGame
          CALL ENDgameWin
@@ -2198,7 +2309,50 @@ recieveletter:
         RET
         ;================= Continue Game ================;
         
-ret
+ContGame:
+        CALL UpdateCellWait
+        CALL GetCurrTime
+                ;===== send
+                mov ah, 1
+                int 16h
+                jz recieveletter
+                mov ah, 0
+                int 16h
+                mov si, PlayerGameNumber
+                CALL ControllGame
+                ;===========Recieve from the othe player========;
+        recieveletter:    
+                mov dx , 3FDH   ; Line Status Register
+                in al , dx      ;chk if i recived something
+                AND al , 1    
+                cmp al, 1       
+                jne MAIN_LOOP      ;if not continue looping
+
+                mov  dx , 03F8H  ;else get character in al|value
+                in al , dx                      
+                cmp from_against_player,'$'     ;is it first character to send
+                jnz get_to_cell                 ;if not get the second
+                cmp al, PlayerClkF4             ;chk if exit
+                jne storeFromCellAnotherPlayer  ;if not store from cell
+                mov isGameEnded, 2              ;else exit end game
+                jmp MAIN_LOOP                   ;and return to main loop
+        storeFromCellAnotherPlayer:
+                mov from_against_player,al
+                mov VALUE, 1
+                CALL SEND
+                jmp MAIN_LOOP
+                ;==================== start move another player
+                get_to_cell:
+                mov to_against_player,al
+                mov si,PlayerGameNumber ;get player number
+                xor si,3
+                Call MovePeiceFromToAnotherPlayer        
+                mov from_against_player, '$'
+                mov to_against_player, '$'
+                ;==================== start move another player
+                
+
+                jmp MAIN_LOOP
 StartGame ENDP
 ;_______ inialize board ___________;  
 Go_Chat proc far
