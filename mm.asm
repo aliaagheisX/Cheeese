@@ -6,19 +6,19 @@
         .386
         .STACK 64
         .DATA
-        VALUE DB '$$'
+        ValueForchat DB '$$'
         msg1 DB 'Me: $'
         msg2 DB 'You: $'
         
         c1 DW 0
-        c2 DW 0c00h
-        startCol db 10
+        c2 DW 0600h
+        startCol db 25
         rowSize db 40
 
-        stausLineRow equ 22      ;endRow-2 => 
+        stausLineRow equ 10      ;endRow-2 => 
                                 ;line sepreate status from chat
         
-        ChatLineRow equ  10       ;line seperate two chats
+        ChatLineRow equ  5       ;line seperate two chats
                                 ;(end-start)/2
                                 ;start = 0
                                 ;end line => 24- (2 lines for status + 1 line sep)
@@ -85,19 +85,19 @@ InializeChar    PROC
                 int 10h
                 ;_____________ draw line___________________;
                 mov dh, stausLineRow
-                mov dl, 0       ;lineCol
+                mov dl, startCol     ;lineCol
                 mov bh, 0       ;set cusor to line row
                 mov ah, 02
                 int 10h
 
-                mov al, '_'     ;charcter
+                 mov al, '_'     ;charcter
                 mov bl, 03h     ;color
                 mov bh, 0       ;page
                 mov ch, 0
                 mov cl, rowSize      ;count
+                sub cl, startCol
                 mov ah, 09      ;repeat count
                 int 10h
-                
                 
                 RET
 InializeChar    ENDP
@@ -131,7 +131,7 @@ SEND            PROC
                 AND al , 00100000b
                 JZ AG
                 mov dx , 3F8H ; Transmit data register
-                mov al,VALUE
+                mov al,ValueForchat
                 out dx , al 
                 popa
                 RET
@@ -143,7 +143,7 @@ PrnChar         PROC    ;(dx = cursor position to print) ==> (dx = updated curso
                 mov ah, 02      ;
                 int 10h         ;
 
-                mov al, VALUE   ;get character to print
+                mov al, ValueForchat   ;get character to print
                 cmp  al, 13     ;check if not enter
                 jne prnN        ;if not print it as normal
 
@@ -209,7 +209,7 @@ chkMeCursor:    mov dx, c1                      ;dx = me cursor
                 mov dh, ChatLineRow             ;update to be in row before line
                 dec dh                          ;
                 mov dl, startCol                ;update col to be in start col
-                mov c1, dx                      ;mov value into cursor
+                mov c1, dx                      ;mov ValueForchat into cursor
                 jmp chkYouCursor                ;chk nxt cursor
 
 chkNlCursor1:   cmp dl, startCol             ;chk if cursor col be less than start col
@@ -224,7 +224,7 @@ chkYouCursor:   mov dx, c2                      ;dx = you cursor
                 mov dh, stausLineRow            ;update to be in row before line
                 dec dh
                 mov dl, startCol                ;update col to be in start col
-                mov c2, dx                      ;mov value into cursor
+                mov c2, dx                      ;mov ValueForchat into cursor
                 jmp EXITChkCur                  ;and exit function
 
 chkNlCursor2:   cmp dl, startCol             ;chk if cursor col be less than start col
@@ -268,7 +268,7 @@ MNLOOP:
                 cmp al, 1bh     ;chk if esc
                 je EXIT         ;if yes ext
 
-                mov VALUE, al   ;put character in vluae for SEND call
+                mov ValueForchat, al   ;put character in vluae for SEND call
                 CALL SEND       ;send character
 
                 mov dx, c1      ;set me cursor
@@ -283,9 +283,9 @@ PrnRvs:         mov dx , 3FDH   ; Line Status Register
                 cmp al, 1       
                 jne MNLOOP      ;if not continue looping
 
-                mov dx , 03F8H  ;else get character in al|value
+                mov dx , 03F8H  ;else get character in al|ValueForchat
                 in al , dx
-                mov VALUE, al
+                mov ValueForchat, al
 
 
                 mov dx, c2      ;set you cursor

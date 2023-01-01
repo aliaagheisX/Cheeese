@@ -15,6 +15,7 @@
         ;the speech from chat
         InDATA               db  100,?,100 dup('$')
 
+
 ;__________-main___________;
         FLINE DB 'To start chatting press F1$'
         SLINE db 'To start the game press F2$'
@@ -52,6 +53,7 @@ waitSec PROC   FAR                                                ;ax = row, cx 
                     pop      ax
                     RET
 waitSec ENDP
+
 DRAWMAINSCREEN PROC FAR
         mov ax, 0003h                                  ; clear screen
         int 10H          
