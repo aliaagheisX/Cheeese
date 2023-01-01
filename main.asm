@@ -178,9 +178,9 @@ ChattingScreen Proc FAR                                       ; al ==> startfor 
                              jz    AGAINk
                              mov   ah,0
                              int   16h
-                             cmp   ah,61d
+                             cmp   ah,1h
                              jz    MS1
-        continuechattingmode:cmp   ah,28
+        continuechattingmode:cmp   ah,28                      ;enter
                              jne   art
                              push  CX
                              mov   cx,position1
@@ -191,9 +191,12 @@ ChattingScreen Proc FAR                                       ; al ==> startfor 
                              jmp   again1
         art:                 mov   variable,al
                              mov   dx,position1
+                             cmp   dx,0a4fh
+                             je    linek
                              cmp   dh,0bh
                              jb    comm1
-                             pusha
+                            
+        linek:               pusha
                              mov   ax,0601h                   ;scrolling the page
                              mov   bh,07
                              mov   cx,0100h
@@ -201,24 +204,30 @@ ChattingScreen Proc FAR                                       ; al ==> startfor 
                              int   10h
         ;dec dl
         ; dec dh
+                             MOV   AH,2                       ;SETTING CURSOR
+                             MOV   BH,0
+                             mov   dx,0a00h
+                             INT   10h
                              mov   ah,3h
                              mov   bh,0h
                              int   10h
+
         ;inc   dh
                        
 
                              mov   position1,dx
                              popa
-                             push  CX
-                             mov   cx,position1
-                             sub   ch,1
-                             mov   position1,cx
-                             pop   cx
+        ;      push  CX
+        ;      mov   cx,position1
+        ;      sub   ch,1
+        ;      mov   position1,cx
+        ; pop   cx
                              JMP   comm1
         MS1:                 
                              JMP   MS
         comm1:               MOV   AH,2                       ;SETTING CURSOR
                              MOV   BH,0
+                             mov   dx,position1
                              INT   10h
                              add   position1 ,0001
                              mov   dl,al

@@ -244,7 +244,7 @@ MAIN    PROC FAR
         MOV DS, AX
 
         mov ah, 0
-        mov al, 13
+        mov al, 3
         int 10h
 
         mov ax, 0b800h
