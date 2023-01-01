@@ -2521,6 +2521,7 @@ ControllGame    PROC FAR        ;si, ax = value
                                 mov isGameEnded, 2
                                 MOV VALUE, PlayerClkF4
                                 CALL SEND
+                                jmp ExitControllGame
                 sndChar:        CALL SendMessage
                 ExitControllGame:
                 RET

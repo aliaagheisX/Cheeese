@@ -9,6 +9,17 @@
         .MODEL HUGE
         .STACK 256
         .DATA
+         ;________chat__________;
+       
+        value                db  ?,  0AH, 0DH, "$"
+        messsage             DB  'serial communication Receive', 0AH, 0DH, "$"
+        player1              db  'me: ','$'
+        player2              db  'you: ','$'
+        position1            dw  ?
+        position2            dw  ?
+        variable             db  '$'
+
+        ;__________-main___________;
         ;________chat__________;
         Playername1          db  "Adam",'$'                       ;
         Playername2          db  "Gasser",'$'
@@ -25,10 +36,13 @@
         mes db 'Please Enter Your Name$'   
         mes2 db 'Press Enter To Continue$'
         playername db 15 dup('$') 
+        anotherPlayerName db 16 dup('$') 
 
         playerGetInvMess db 'play get invitation$'
         playerSendInvMess db 'play send invitation$'
+        playerCantSentInv db 'there`s no another player in the room$'
         ;________screen states _________;
+
         playerEnterUserName     equ 0
         playerWaiting           equ 1
 
@@ -45,7 +59,6 @@
         ;si = 2 => player number = 2 => white
         PlayerCanChat db 0 ;1
         PlayerCanGame db 0 ;1
-        VALUE DB ?
 
         .CODE
 waitSec PROC   FAR                                                ;ax = row, cx = col =>>>> ax = current start point
@@ -401,17 +414,64 @@ Usernames Proc FAR
                 mov ah,2
                 mov dl,al
                 int 21h
-                mov playername[bx],al
+                mov playername1[bx],al
                 inc bx  
                 jmp Here 
                 Exit2: 
 
         popa
 
-
-ret
-
+        ;========= SEND NAME TO ANOTHER PLAYER
+        mov bx, 0
+        lpOnName:
+                cmp playername[bx], '$'
+                jne continueSendName
+                mov VALUE, '$'
+                call SEND
+                RET
+        continueSendName: 
+                mov al,playername[bx]
+                mov VALUE, al
+                CALL SEND
+                inc bx
+        jmp lpOnName
+RET
 Usernames endp
+
+
+
+
+WaitUserName    PROC FAR
+        MnLoopWit:      mov ah, 1
+                        int 16h
+                        jz ChkRcvName       ;if no ch
+                        lea dx, playerCantSentInv
+                        CALL PrintMessageSt
+                ChkRcvName:
+                mov dx , 3FDH   ; Line Status Register
+                in al , dx      ;chk if i recived something
+                AND al , 1    
+                cmp al, 1       
+                jne MnLoopWit      ;if not continue looping
+                mov bx, 0
+                GetNameAntherPl:
+                        mov dx , 3FDH   ; Line Status Register
+                        in al , dx      ;chk if i recived something
+                        AND al , 1    
+                        cmp al, 1       
+                        jne EXtWaitUser      ;if not continue looping
+                        mov dx , 03F8H  ;else get character in al|value
+                        in al , dx
+                        cmp al, '$'
+                        je EXtWaitUser
+                        mov anotherPlayerName[bx], al
+                        inc bx
+                EXtWaitUser:
+                        mov anotherPlayerName[bx], '$'
+                        
+                RET
+WaitUserName    ENDP
+
 
 
 
@@ -423,9 +483,15 @@ MAIN    PROC FAR
     ;=======================;
     CALL port_initializatiion 
     CALL Usernames
-    
+    ;=========== inialize
+    CALL DrawMainScreen  
+    CALL WaitUserName
+
 returnHme:    CALL DrawMainScreen             ;main graphically
+lea dx, playername
+        call PrintMessageSt
     MnLoop: 
+        
         mov ah, 1
         int 16h
         jz ChkRcv       ;if no ch
