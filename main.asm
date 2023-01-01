@@ -105,117 +105,175 @@ RET
 DRAWMAINSCREEN ENDP
 
 
-ChattingScreen Proc FAR                                          ; al ==> startfor x ;cl ==>start for y
-        ; For Chat Mode cl=0 al=0
+ChattingScreen Proc FAR                                       ; al ==> startfor x ;cl ==>start for y
                              pusha
-                      
-                             mov   bh,al
-                             mov   ah,0                          ;switch to text mode
-                             mov   al,3h
-                             int   10H
-                             mov   ah,2
-
-                             mov   dl,0                          ;x
-                             mov   dh,0                          ;y
-                             int   10h
-                           
-                             mov   ah, 9
-                             mov   dx, offset Playername1
-                             int   21h
-                             mov   ah,0
-                             mov   ah,2
-                             mov   dl,':'
-                             int   21h
-                             mov   ah,2
-                             mov   dl,10
-                             int   21h
-                             mov   ah,2
-                             mov   dl,10
-                             int   21h
-                             mov   ah, 9
-                             mov   dx, offset talk
-                             int   21h
-                             mov ah,2
-                             mov   dl,0                          ;x
-                             mov   dh,15                         ;y
-                             int   10h
-                             mov   cx,80
-        Seperate:            
-                             mov   ah,2
-                             mov   bl,dl
-                             mov   dl,'-'
-                             int   21h
-                             mov   dl,bl
-                             inc   dl
-                             int   10h
-                             Loop  Seperate
-                             mov   ah, 9
-                             mov   dx, offset Playername2
-                             int   21h
-                             mov   ah,2
-                             mov   dl,':'
-                             int   21h
-                             mov   ah,2
-                             mov   dl,10
-                             int   21h
-                             mov   ah,2
-                             mov   dl,10
-                             int   21h
-                             mov   si,1000
-                             mov   dl,0
-                             mov   dh,17
-                             mov   ah,00
-                             mov   al,00
-         Reading:             
-                                ; check: 
-                                mov ah, 1
-                                int 16h
-                                jz reading
-                                mov ah, 0
-                                int 16h
-                                cmp ah,03dh 
-                                je comp         
-                             push  dx
-                             cmp   dh,24          ;when make 25 there is a gap in x and in y
-                             jb   continuewriting
-                        ;      mov   ah,2
-                        ;      mov   dl,0                          ;x                 
-                        ;      int   10h
-                             mov   ax,0601h
-                             mov   bh,07
-                             mov   cx,0
-                             mov   dx,184FH
-                             int   10h
-                             pop   dx
-        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        continuewriting:     
-                             push  dx
-                             mov   ah,0AH
-                             mov   dx,offset InDATA
-                             int   21h
-                            
-
         
-                             mov   ah,2
-                             pop   dx
-                             mov   dl,0
-                             inc   dh
-                             
-                             int   10h
-       
-                             dec   si
-                             cmp   si,0
-                         
-                             jnz   Reading
+                             mov   ah, 09
+                             mov   dx, offset messsage
+                             int   21h
 
+
+                             mov   ah,0
+                             mov   al,3
+                             int   10H
+
+                             mov   ah, 09
+                             mov   dx, offset player1
+                             int   21h
+
+        ;line of status bar
+                             MOV   AH,2                       ;SETTING CURSOR
+                             MOV   BH,0
+                             MOV   Dh,0bh
+                             mov   dl,00h
+                             INT   10h
+        ;printing loop
+                             mov   ah,9
+                             mov   bh,0
+                             MOV   AL,45
+                             MOV   CX,80
+                             MOV   BL,000FH
+                             INT   10H
+
+                             MOV   AH,2                       ;SETTING CURSOR
+                             MOV   BH,0
+                             MOV   Dh,12
+                             mov   dl,00
+                             INT   10h
+
+
+
+
+
+                             mov   ah, 09
+                             mov   dx, offset player2
+                             int   21h
+        ; initinalize COM
+        ;Set Divisor Latch Access Bit
+                             mov   dx,3fbh                    ; Line Control Register
+                             mov   al,10000000b               ;Set Divisor Latch Access Bit
+                             out   dx,al                      ;Out it
+
+        ;Set LSB byte of the Baud Rate Divisor Latch register.
+                             mov   dx,3f8h
+                             mov   al,0ch
+                             out   dx,al
+
+        ;Set MS1B byte of the Baud Rate Divisor Latch register.
+                             mov   dx,3f9h
+                             mov   al,00h
+                             out   dx,al
+
+        ;Set port configuration
+                             mov   dx,3fbh
+                             mov   al,00011011b
+                             out   dx,al
+                             mov   position2,0d00h
+                             mov   position1,0100h
+
+              
+        ;reading char
+        again1:              mov   al,0
+                             mov   ah,01
+                             int   16h
+                             cmp   al,0
+                             jz    AGAINk
+                             mov   ah,0
+                             int   16h
+                             cmp   ah,61d
+                             jz    MS1
+        continuechattingmode:cmp   ah,28
+                             jne   art
+                             push  CX
+                             mov   cx,position1
+                             add   ch,1
+                             mov   cl,0
+                             mov   position1,cx
+                             pop   cx
+                             jmp   again1
+        art:                 mov   variable,al
+                             mov   dx,position1
+                             cmp   dh,0bh
+                             jb    comm1
+                             pusha
+                             mov   ax,0601h                   ;scrolling the page
+                             mov   bh,07
+                             mov   cx,0100h
+                             mov   dx,0a4fh                   ;dh row
+                             int   10h
+        ;dec dl
+        ; dec dh
+                             mov   ah,3h
+                             mov   bh,0h
+                             int   10h
+        ;inc   dh
                        
 
-
-       comp :
-       CALL DrawMainScreen
-
+                             mov   position1,dx
                              popa
-                             ret
+                             push  CX
+                             mov   cx,position1
+                             sub   ch,1
+                             mov   position1,cx
+                             pop   cx
+                             JMP   comm1
+        MS1:                 
+                             JMP   MS
+        comm1:               MOV   AH,2                       ;SETTING CURSOR
+                             MOV   BH,0
+                             INT   10h
+                             add   position1 ,0001
+                             mov   dl,al
+                             mov   ah,2
+                             int   21h
+                             push  ax
+                             cmp   al,1bh
+                             je    exit20
+                             jmp   AGAINk
+        againagain:          
+                             jmp   again1
+
+        AGAINk:              mov   dx , 3FDH                  ; Line Status Register
+                             In    al , dx                    ;Read Line Status
+                             AND   al , 00100000b
+                             JZ    CHK
+                             cmp   variable,'$'
+                             jz    chk
+                             pop   ax
+                             mov   dx , 3F8H                  ; Transmit data register
+                             mov   al,variable
+                             out   dx , al
+                             mov   variable,'$'
+        CHK:                 mov   dx , 3FDH                  ; Line Status Register
+                             in    al , dx
+                             AND   al , 1
+                             JZ    againagain
+
+
+        ;If Ready read the VALUE in Receive data register
+                             mov   dx , 03F8H
+                             in    al , dx
+                             mov   VALUE , al
+
+        ;displaying char
+                             mov   dx,position2
+                             MOV   AH,2                       ;SETTING CURSOR
+                             MOV   BH,0
+                             INT   10h
+                             add   position2 ,0001
+
+                             mov   ah, 09
+                             mov   dx, offset value
+                             int   21h
+                             jmp   again1
+        exit20:              
+                             mov   ah, 4ch
+                             int   21h
+                                
+                           
+        MS:                  
+                             popa
+                             ret                           
 ChattingScreen Endp
 
 PrintMessageSt    PROC FAR        ;dx = offset of message

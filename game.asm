@@ -40,6 +40,25 @@
         .MODEL HUGE
         .STACK 256
 .DATA
+        ;======= chat
+        ValueForchat DB '$$'
+        msg1 DB 'Me: $'
+        msg2 DB 'You: $'
+        keypressed db ?
+        
+        c1 DW 0
+        c2 DW 0400h
+        startCol db 23
+        rowSize db 40
+
+        stausLineRow equ 7      ;endRow-2 => 
+                                ;line sepreate status from chat
+        
+        ChatLineRow equ  3      ;line seperate two chats
+                                ;(end-start)/2
+                                ;start = 0
+        PlayerSentMessState     equ 64
+        ;==== chat
 ;_______sending&recieving__________;
 
 from_against_player db '$'
@@ -910,6 +929,234 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 RET
 ValidateRook    ENDP 
 
+
+;========================= chat
+;========================= chat
+;========================= chat
+
+;_____game chat__________;
+InializeChar    PROC
+                ;__________ inialize cursor ________;
+                mov ah,  0              ;me:cursor => row
+                mov al, startCol        ;me:cursor => col
+                mov c1, ax
+
+                mov ah,  ChatLineRow    ;you:cursor => row 
+                inc ah                  ;ender the line sep bet chat
+                mov al, startCol        ;you:cursor => col
+                mov c2, ax
+                ;__________ print me ________;
+                mov dx, c1      ;set cursor
+                mov bh, 0
+                mov ah, 02
+                int 10h
+
+                lea dx, msg1    ;print ME:
+                mov ah, 9
+                int 21h
+
+                ;___________________print YOU_______________________;
+                mov dx, c2      ;set cursor
+                mov bh, 0       ;page
+                mov ah, 02      ;interrupt
+                int 10h
+
+                lea dx, msg2    ;print YOU:
+                mov ah, 9
+                int 21h
+                ;_____________________update cursors_____________________;
+                mov al, startCol
+                add al, 3               ;just maragin
+
+                mov ah, 1
+                mov c1, ax      ;update cursos to nxt line
+                mov ah, ChatLineRow
+                add ah, 2
+                mov c2, ax      ;update cursos to nxt line
+                ;_____________ draw line seperate between chats___________________;
+                mov dh, ChatLineRow
+                mov dl, startCol       ;lineCol
+                mov bh, 0       ;set cusor to line row
+                mov ah, 02
+                int 10h
+
+                mov al, '_'     ;charcter
+                mov bl, 03h     ;color
+                mov bh, 0       ;page
+                mov ch, 0
+                mov cl, rowSize      ;count
+                sub cl, startCol
+                mov ah, 09      ;repeat count
+                int 10h
+                ;_____________ draw line___________________;
+                mov dh, stausLineRow
+                mov dl, startCol     ;lineCol
+                mov bh, 0       ;set cusor to line row
+                mov ah, 02
+                int 10h
+
+                 mov al, '_'     ;charcter
+                mov bl, 03h     ;color
+                mov bh, 0       ;page
+                mov ch, 0
+                mov cl, rowSize      ;count
+                sub cl, startCol
+                mov ah, 09      ;repeat count
+                int 10h
+                
+                RET
+InializeChar    ENDP
+
+
+PrnChar         PROC    ;(dx = cursor position to print) ==> (dx = updated cursor position)
+                
+                mov bh, 0       ;set cursor position to (dx = cursor position to print)
+                mov ah, 02      ;
+                int 10h         ;
+
+                mov al, ValueForchat   ;get character to print
+                cmp  al, 13     ;check if not enter
+                jne prnN        ;if not print it as normal
+
+                add dh, 1
+                mov dl, startCol;set cursor col to start col
+                mov bh, 0       ;set cursor position to (dx = cursor position to print)
+                mov ah, 02      ;
+                int 10h         ;
+                RET   ;and exit
+                ;__________________________________________________;
+                
+prnN:     
+                mov dl, al      ;print character normally
+                mov ah, 2
+                int 21h
+
+ExPrnChar:      
+                mov ah, 3       ;get updated cursor (in dx)
+                mov bh, 0
+                int 10h
+
+                RET
+PrnChar         ENDP
+
+
+ScrollUP1       PROC           ;dx = cursor poisiotn
+
+                mov ah,6                ; function 6 to scroll up
+                mov al,1                ; scroll by 1 line
+                mov bh,0                ; normal video attribute = black
+                mov ch,1                ; upper left row
+                mov cl,startCol         ; upper left col
+                mov dh,ChatLineRow      ; lower right row before chat line sep
+                dec dh
+                mov dl,rowSize          ; lower right col
+                int 10h
+                RET
+ScrollUP1        ENDP
+
+ScrollUP2        PROC    ;dx = cursor poisiotn
+                mov ah,6  ; function 6
+                mov al,1  ; scroll by 1 line
+                mov bh,0  ; normal video attribute
+
+                mov ch,ChatLineRow  ; upper left row after you:
+                add ch, 2
+                mov cl,startCol  ; upper left col
+
+                mov dh,stausLineRow ; lower right row
+                dec dh
+                mov dl,rowSize ; lower right col
+                int 10h
+                RET
+ScrollUP2        ENDP
+
+
+ChkCusrorUpdate PROC
+                pusha
+chkMeCursor:    mov dx, c1                      ;dx = me cursor
+                cmp dh, ChatLineRow             ;chk if in nxt state row = chat line seperator
+                jne chkNlCursor1                ;if not chk if enter new col         
+                CALL ScrollUP1                  ;else scroll up
+                mov dh, ChatLineRow             ;update to be in row before line
+                dec dh                          ;
+                mov dl, startCol                ;update col to be in start col
+                mov c1, dx                      ;mov ValueForchat into cursor
+                jmp chkYouCursor                ;chk nxt cursor
+
+chkNlCursor1:   cmp dl, startCol             ;chk if cursor col be less than start col
+                jae chkYouCursor             ;if not chk another cursor
+                mov dl, startCol             ;else return cursor to start col
+                mov c1,dx
+
+chkYouCursor:   mov dx, c2                      ;dx = you cursor
+                cmp dh, stausLineRow            ;chk if in nxt state row = status line seperator
+                jne chkNlCursor2                ;if not chk if enter new col   
+                CALL ScrollUP2                  ;else scroll up
+                mov dh, stausLineRow            ;update to be in row before line
+                dec dh
+                mov dl, startCol                ;update col to be in start col
+                mov c2, dx                      ;mov ValueForchat into cursor
+                jmp EXITChkCur                  ;and exit function
+
+chkNlCursor2:   cmp dl, startCol             ;chk if cursor col be less than start col
+                jae EXITChkCur                ;if not chk another cursor
+                mov dl, startCol             ;else return cursor to start col
+                mov c2,dx
+                     
+EXITChkCur:
+                popa
+                RET
+ChkCusrorUpdate ENDP
+
+
+SendMessage     PROC  FAR
+
+                pusha                           ;send first byte of state
+                mov VALUE, PlayerSentMessState
+                CALL SEND
+
+                 RcvLp1:  mov dx , 3FDH   ; Line Status Register
+                        in al , dx      ;chk if i recived something
+                        AND al , 1    
+                        cmp al, 1       
+                        jne RcvLp1      ;if not continue looping
+                        mov dx , 03F8H  ;else get character in al|value
+                        in al , dx
+
+                popa
+
+                pusha                   ;send second byte of char  & update cell
+                mov ValueForchat, al   ;put character in vluae for SEND call
+                mov VALUE, al   ;put character in vluae for SEND call
+                CALL SEND       ;send character
+
+                mov dx, c1      ;set me cursor
+                CALL PrnChar    ;print character
+                mov c1, dx      ;update me cursor
+                CALL ChkCusrorUpdate    ;scroll if not
+                popa
+
+                RET
+SendMessage     ENDP
+
+RcvMessage     PROC  FAR        ;(al = print char)
+                pusha
+
+                mov ValueForchat, al
+                mov dx, c2      ;set you cursor
+                CALL PrnChar    ;print character
+                mov c2, dx      ;upate you cursor
+                CALL ChkCusrorUpdate
+
+                popa
+                RET
+RcvMessage     ENDP
+
+
+;============================================
+;============================================
+;============================================
+;============================================
 
 ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 pusha
@@ -2269,11 +2516,12 @@ ControllGame    PROC FAR        ;si, ax = value
                                 Call ChecKKing
                                 jmp   ExitControllGame
                 chkF4:          cmp ah,3Eh      ;chk if clik f4
-                                jne ExitControllGame
+                                jne sndChar
                                 mov playersState[si], PlayerEndedGame
                                 mov isGameEnded, 2
                                 MOV VALUE, PlayerClkF4
                                 CALL SEND
+                sndChar:        CALL SendMessage
                 ExitControllGame:
                 RET
 ControllGame    ENDP        ;si, al = value
@@ -2291,6 +2539,7 @@ StartGame PROC FAR
         ; ____ inialize video mode ____;
         
         CALL DrawBoard                          ;inialize draw board
+        CALL InializeChar
         ;==== inialize timer
         mov ah, 2ch
         int 21h
@@ -2331,9 +2580,23 @@ ContGame:
                 mov  dx , 03F8H  ;else get character in al|value
                 in al , dx                      
                 cmp al, PlayerClkF4             ;chk if exit
-                jne storeFromCellAnotherPlayer  ;if not store from cell
+                jne chkForChat                  ;if not store from cell
                 mov isGameEnded, 2              ;else exit end game
                 jmp MAIN_LOOP                   ;and return to main loop
+        chkForChat:     cmp al, PlayerSentMessState        ;chk if p 
+                        jne storeFromCellAnotherPlayer
+                        mov VALUE, 1
+                        CALL SEND
+                        lppp1:   mov dx , 3FDH   ; wait till second character
+                                in al , dx      ; 
+                                AND al , 1    
+                                cmp al, 1       
+                                jne lppp1
+                        mov  dx , 03F8H  ;else get character in al|value
+                        in al , dx
+                        CALL RcvMessage
+                        jmp MAIN_LOOP
+
         storeFromCellAnotherPlayer:
                 mov from_against_player,al
                 mov VALUE, 1

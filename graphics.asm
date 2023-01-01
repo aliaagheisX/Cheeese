@@ -182,6 +182,23 @@ DrawSquareBord PROC    FAR ;di = start position, al = highlight color
         RET
 DrawSquareBord ENDP 
 
+DrawPlayers     PROC    FAR
+                push ax
+                push di
+                push si
+                
+                mov si, PlayerGameNumber
+                shl si, 1
+                mov di, PlayerPos[si]
+                mov al, 4
+                CALL DrawSquareBord
+
+                pop si
+                pop di
+                pop ax
+                RET
+DrawPlayers     ENDP
+
 DrawBoard       PROC    FAR ;inialize first with all peices
                 CALL DrawGrid 
                 pusha
@@ -225,11 +242,7 @@ DrawBoard       PROC    FAR ;inialize first with all peices
                 pop cx
                 loop DrawBoardLoop1
         popa
-        mov al, 4
-        mov di, PlayerPos[2]
-        CALL DrawSquareBord
-        mov di, PlayerPos[4]
-        CALL DrawSquareBord
+        CALL DrawPlayers
         RET
 DrawBoard       ENDP     
 
