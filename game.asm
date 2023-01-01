@@ -2105,25 +2105,26 @@ ControllGame    PROC FAR        ;si, ax = value
                         jne pressZero
                         CALL MoveRight
                         jmp ExitControllGame
-        pressZero:              cmp   ah, 28
-                                jne   chat
+        pressZero:              cmp   ah, 'R'
+                                jne   chkF4
                                 cmp   playersState[si], playerMoveToChoosePeice
                                 jne   stateLabel2
                                 CALL  SelectValidationOfPeice
                                 jmp   ExitControllGame
         stateLabel2:            cmp   playersState[si], playerMoveToChooseAction
-                                jne   chat
+                                jne   chkF4
                                 CALL  MovePeiceFromTo
                                 mov si, 2       ;black moved => mov peice then check check another player
                                 Call ChecKKing
                                 mov si, 1       ;black moved => mov peice then check check another player
                                 Call ChecKKing
                                 jmp   ExitControllGame
-                chat:           cmp ah,3Eh      ;chk if clik f4
+                chkF4:          cmp ah,3Eh      ;chk if clik f4
                                 jne ExitControllGame
                                 mov playersState[si], PlayerEndedGame
                                 mov isGameEnded, 2
                 ExitControllGame:
+                RET
 ControllGame    ENDP        ;si, al = value
 
 StartGame PROC FAR
@@ -2170,10 +2171,22 @@ recieveletter:
 
         mov dx , 03F8H  ;else get character in al|value
         in al , dx
-        mov ah, al
+        mov ah, al    
+        pusha   ;set  cur
+        mov dh, 39
+        mov dl, 0
+        mov bh, 0
+        mov ah, 2
+        int 10H
+        popa  
+        pusha           ;print
+        mov dl, ah
+        mov ah, 2
+        int 21h
+        popa
         mov si,PlayerGameNumber
         xor si,3
-        CALL ControllGame
+        CALL ControllGame ;(ah = scan code)
         
         continue:;no recieve
          cmp isGameEnded, 1
