@@ -41,6 +41,7 @@ var db '$'
         ValueForchat DB '$$'
         msg1 DB 'Me: $'
         msg2 DB 'You: $'
+        keypressed db ?
         
         c1 DW 0
         c2 DW 0400h
@@ -2304,27 +2305,28 @@ pusha
                 
                 cmp al, 1bh     ;chk if esc
                 je EXIT         ;if yes ext
-        ;        ;press for arrows 
-        ;         pressUpExit:    
-        ;                 cmp ah, 48h
-        ;                 je pressLeftExit
-        ;                 jmp EXIT
+                ; i think elmafrod nzabt hwar exit from chat to game hna
+               ;press for arrows 
+                 pressUpExit:    
+                         cmp ah, 48h
+                         jne pressLeftExit
+                         jmp EXIT
 
-        ; pressLeftExit:      cmp ah, 4bh
-        ;                 je pressDownExit
+         pressLeftExit:      cmp ah, 4bh
+                         jne pressDownExit
                        
-        ;                 jmp EXIT
+                         jmp EXIT
 
-        ; pressDownExit:      cmp ah, 50h  
-        ;                 je pressRightExit
+         pressDownExit:      cmp ah, 50h  
+                         jne pressRightExit
                        
-        ;                 jmp EXIT
+                         jmp EXIT
 
-        ; pressRightExit:     cmp ah, 4dh
-        ;                    je pressZero
-        ;                    EXIT
+         pressRightExit:     cmp ah, 4dh
+                          jne continuechatting 
+                          jmp  EXIT
                         
-             
+             continuechatting:
              ;the end
 
                 mov ValueForchat, al   ;put character in vluae for SEND call
@@ -2356,8 +2358,15 @@ PrnRvs:         mov dx , 3FDH   ; Line Status Register
                 jmp MNLP      ;loop
 
 
-        EXIT:
+       EXIT:
+       mov VALUE,ah
+
+
         popa
+        mov ah,VALUE
+
+
+        
 ret
 GameChat endp
 ;___________Game_________;
@@ -2421,7 +2430,7 @@ ContGame:
 
  
          mov ah, VALUE
-        
+
         pressUp:    
                         cmp ah, 48h
                         jne pressLeft
@@ -2480,4 +2489,3 @@ Go_Chat endp
 
 END 
  
-
