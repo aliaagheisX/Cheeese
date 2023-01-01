@@ -13,19 +13,14 @@
        
         value                db  ?,  0AH, 0DH, "$"
         messsage             DB  'serial communication Receive', 0AH, 0DH, "$"
-        player1              db  'me: ','$'
-        player2              db  'you: ','$'
+        player1              db  16 dup('$') 
+        player2              db  16 dup('$') 
         position1            dw  ?
         position2            dw  ?
         variable             db  '$'
 
         ;__________-main___________;
         ;________chat__________;
-        Playername1          db  "Adam",'$'                       ;
-        Playername2          db  "Gasser",'$'
-        ;this is a test for phase 1
-        talk                 db  "Hello.How are you ?",'$'
-        ;the speech from chat
         InDATA               db  100,?,100 dup('$')
 
 ;__________-main___________;
@@ -35,12 +30,16 @@
 ;___________usernames_________________________;
         mes db 'Please Enter Your Name$'   
         mes2 db 'Press Enter To Continue$'
-        playername db 15 dup('$') 
-        anotherPlayerName db 16 dup('$') 
+        
 
-        playerGetInvMess db 'play get invitation$'
-        playerSendInvMess db 'play send invitation$'
+        playerGetChatInvMess db  'play get chat invitation from$'
+        playerSendChatInvMess db 'play send chat invitation to:$'
+        playerGetGameInvMess  db 'play get game invitation from$'
+        playerSendGameInvMess db 'play send game invitation to:$'
+
         playerCantSentInv db 'there`s no another player in the room$'
+        playerSendingNamemess db 'sendgin... $'
+        playerRcvNamemess db 'reciving....$'
         ;________screen states _________;
 
         playerEnterUserName     equ 0
@@ -48,7 +47,7 @@
 
         playerSendingChatInv    equ 2   ;
         playerSendingGameInv    equ 3
-        playerCanAcceptGame     equ 4
+        playerAcceptChatInv     equ 4
         playerAcceptGameInv     equ 5
 
         PlayersChattingNow      equ 6
@@ -304,6 +303,22 @@ PrintMessageSt    PROC FAR        ;dx = offset of message
                 RET
 PrintMessageSt    ENDP
 
+PrintMessageSt1    PROC FAR        ;dx = offset of message
+                pusha
+                mov dh, 24
+                mov dl, 1
+                mov bh, 0
+                mov ah, 2
+                int 10H
+                popa
+                ;;;;;;
+                mov ah, 09
+                int 21h
+                
+                RET
+PrintMessageSt1    ENDP
+
+
 port_initializatiion PROC FAR
         pusha 
         mov dx,3fbh ; Line Control Register
@@ -414,61 +429,96 @@ Usernames Proc FAR
                 mov ah,2
                 mov dl,al
                 int 21h
-                mov playername1[bx],al
+                mov player1[bx],al
                 inc bx  
                 jmp Here 
                 Exit2: 
 
         popa
 
-        ;========= SEND NAME TO ANOTHER PLAYER
-        mov bx, 0
-        lpOnName:
-                cmp playername[bx], '$'
-                jne continueSendName
-                mov VALUE, '$'
-                call SEND
-                RET
-        continueSendName: 
-                mov al,playername[bx]
-                mov VALUE, al
-                CALL SEND
-                inc bx
-        jmp lpOnName
 RET
 Usernames endp
 
 
 
-
-WaitUserName    PROC FAR
-        MnLoopWit:      mov ah, 1
-                        int 16h
-                        jz ChkRcvName       ;if no ch
-                        lea dx, playerCantSentInv
-                        CALL PrintMessageSt
-                ChkRcvName:
+RcvName        PROC FAR
+                mov bx, 0
+        keepWaitOnCh:
                 mov dx , 3FDH   ; Line Status Register
                 in al , dx      ;chk if i recived something
                 AND al , 1    
                 cmp al, 1       
-                jne MnLoopWit      ;if not continue looping
+                jne keepWaitOnCh      ;if not continue looping
+                
+                mov dx , 03F8H  ;else get character in al|value
+                in al , dx
+                mov player2[bx], al
+                inc bx
+                cmp al, '$'
+                jne keepGoingOnRcv
+                RET
+        keepGoingOnRcv:
+                mov VALUE, 1    ;send acceptance
+                CALL SEND
+                jmp keepWaitOnCh
+                RET
+RcvName        ENDP
+
+SendName        PROC FAR
+                lea dx, playerCantSentInv
+                CALL PrintMessageSt
                 mov bx, 0
-                GetNameAntherPl:
-                        mov dx , 3FDH   ; Line Status Register
-                        in al , dx      ;chk if i recived something
-                        AND al , 1    
-                        cmp al, 1       
-                        jne EXtWaitUser      ;if not continue looping
-                        mov dx , 03F8H  ;else get character in al|value
-                        in al , dx
-                        cmp al, '$'
-                        je EXtWaitUser
-                        mov anotherPlayerName[bx], al
-                        inc bx
-                EXtWaitUser:
-                        mov anotherPlayerName[bx], '$'
-                        
+        lpSn:   mov al, player1[bx]
+                cmp al, '$'
+                jne keepNormalLp
+                mov VALUE, al   ;send that it's the end
+                CALL SEND       ;then return
+                RET
+                ;== send and keep waiting for acc
+        keepNormalLp:        
+                mov VALUE, al
+                CALL SEND
+        keepWaitingForAcc:  mov dx , 3FDH   ; Line Status Register
+                in al , dx      ;chk if i recived something
+                AND al , 1    
+                cmp al, 1       
+                jne keepWaitingForAcc      ;if not continue looping
+                mov dx , 03F8H  ;else get character in al|value
+                in al , dx
+
+                inc bx  ;update character
+        jmp lpSn
+                RET
+SendName        ENDP
+
+WaitUserName    PROC FAR
+;1 - chk if anything recived
+;       if - get the byte as first character 
+;       if - and send acceptance chatacter
+;       if - keep recive till last character
+;       then - start sending my name
+
+;2 - if not
+;       send character
+;       wait for acceptance
+;       send another character and go on
+;       then - start reciving other name
+
+                pusha
+
+                mov dx , 3FDH   ; Line Status Register
+                in al , dx      ;chk if i recived something
+                AND al , 1    
+                cmp al, 1       
+                jne SntThenRcv      ;if not continue sent then recive
+                Call RcvName
+                CALL SendName
+                popa
+                RET
+        SntThenRcv:
+                CALL SendName
+                Call RcvName
+                popa
                 RET
 WaitUserName    ENDP
 
@@ -488,22 +538,28 @@ MAIN    PROC FAR
     CALL WaitUserName
 
 returnHme:    CALL DrawMainScreen             ;main graphically
-lea dx, playername
-        call PrintMessageSt
     MnLoop: 
-        
         mov ah, 1
         int 16h
-        jz ChkRcv       ;if no ch
-
+        jz shrtChkRcv       ;if no ch
         mov ah, 0
         int 16h
-
         chkF1:  cmp ah, 03bh    ;chk f2
                 jne chkF2
-                CALL ChattingScreen
+                cmp PlayerCanChat, 0    ;if no invitation
+                je InviteChatL         ;if not send invit
+                mov VALUE, playerAcceptChatInv;send to white you accept invitation
+                CALL SEND                     ;send you accept invitation
+                CALL ChattingScreen          ;and start game
+                mov PlayerCanChat, 0    ;return to not can
                 jmp returnHme
-
+                InviteChatL:
+                        mov VALUE, playerSendingChatInv        ;send invitation
+                        CALL SEND
+                        lea dx, playerSendChatInvMess
+                        CALL PrintMessageSt
+                shrtChkRcv:     jmp ChkRcv
+                shrtMnLoop:     jmp MnLoop
         chkF2:  cmp ah, 03Ch    ;chk f2
                 jne chkE
                 cmp PlayerCanGame, 0    ;if no invitation
@@ -514,45 +570,50 @@ lea dx, playername
                 CALL StartGame          ;and start game
                 mov PlayerCanGame, 0    ;return to not can
                 jmp returnHme
-
-        InviteGameL:
-                mov PlayerGameNumber, 2                ;be white in next game
-                mov VALUE, playerSendingGameInv        ;send invitation
-                CALL SEND
-                lea dx, playerSendInvMess
-                CALL PrintMessageSt
-                jmp ChkRcv
-                
+                InviteGameL:
+                        mov PlayerGameNumber, 2                ;be white in next game
+                        mov VALUE, playerSendingGameInv        ;send invitation
+                        CALL SEND
+                        lea dx, playerSendGameInvMess
+                        CALL PrintMessageSt
+                        jmp ChkRcv
         chkE:   cmp ah, 1h
                 jne ChkRcv
                 mov ax, 0003h                                  ; clear screen
                 int 10H
                 jmp EXTMN
                 ;===================== reciving ======================;
-        ChkRcv: 
-                mov dx , 3FDH   ; Line Status Register
+        ChkRcv: mov dx , 3FDH   ; Line Status Register
                 in al , dx      ;chk if i recived something
                 AND al , 1    
                 cmp al, 1       
-                jne MnLoop      ;if not continue looping
-                
+                jne shrtMnLoop      ;if not continue looping
                 mov dx , 03F8H  ;else get character in al|value
                 in al , dx
                 mov VALUE, al
-
                 cmp al, playerSendingGameInv    ;if another player send game inv
                 jne chkIfAcceptGme              ;if not
-                lea dx, playerGetInvMess
+                lea dx, playerGetGameInvMess
                 CALL PrintMessageSt
                 mov PlayerCanGame, 1            ;can player
                 mov PlayerGameNumber,1          ;black
-                jmp MnLoop
+                jmp shrtMnLoop
 chkIfAcceptGme: cmp al, playerAcceptGameInv     ;if player accept invite
+                jne ChlIfSendChat
                 mov PlayerGameNumber,2          ;white
                 CALL StartGame                  ;start game
                 jmp returnHme                   ;return home screen
+ChlIfSendChat:  cmp al, playerSendingChatInv    ;if another player send game inv
+                jne chkIfAcceptCht              ;if not
+                lea dx, playerGetChatInvMess
+                CALL PrintMessageSt
+                mov PlayerCanChat, 1            ;can player
+        shrtMnLoop2:        jmp shrtMnLoop
+chkIfAcceptCht: cmp al, playerAcceptChatInv     ;if player accept invite
+                jne shrtMnLoop2
+                CALL ChattingScreen                  ;start game
+                jmp returnHme                   ;return home screen
 
-                
         jmp MnLoop
         ;
          ;__end___;
