@@ -27,6 +27,7 @@
         EXTRN MvePieceFromGraphics:FAR
         EXTRN DrawPlayers:FAR
         EXTRN killedPeicePos:WORD
+        EXTRN PlayerGameNumber:WORD
         EXTRN killedPeiceRow:BYTE
         EXTRN killedPeiceCol:BYTE
 
@@ -90,6 +91,7 @@ var db '$'
         PlayerSelectedCell  db ?, ?, ?
         PlayerSelectedRow  db ?, ?, ?
         PlayerSelectedPos  dw ?, ?, ?
+
 
         lstValidDirection dw 8 dup(?);
 
@@ -2052,21 +2054,21 @@ ENDgameWin      PROC      FAR
 ENDgameWin      ENDP
 
 port_initializatiion PROC FAR
-pusha 
- mov dx,3fbh ; Line Control Register
- mov al,10000000b ;Set Divisor Latch Access Bit
- out dx,al 
- mov dx,3f8h
- mov al,0ch
- out dx,al
- mov dx,3f9h
- mov al,00h
- out dx,al
- mov dx,3fbh
- mov al,00011011b
- out dx,al
- popa
- ret
+        pusha 
+        mov dx,3fbh ; Line Control Register
+        mov al,10000000b ;Set Divisor Latch Access Bit
+        out dx,al 
+        mov dx,3f8h
+        mov al,0ch
+        out dx,al
+        mov dx,3f9h
+        mov al,00h
+        out dx,al
+        mov dx,3fbh
+        mov al,00011011b
+        out dx,al
+        popa
+        ret
 port_initializatiion EndP
 SEND            PROC
                 pusha
@@ -2080,9 +2082,52 @@ SEND            PROC
                 popa
                 RET
 SEND            ENDP
+
+
+ControllGame    PROC FAR        ;si, ax = value
+        pressUp:    
+                        cmp ah, 48h
+                        jne pressLeft
+                        CALL MoveUp
+                        jmp ExitControllGame
+
+        pressLeft:      cmp ah, 4bh
+                        jne pressDown
+                        Call MoveLeft
+                        jmp ExitControllGame
+
+        pressDown:      cmp ah, 50h  
+                        jne pressRight
+                        CALL MoveDown
+                        jmp ExitControllGame
+
+        pressRight:     cmp ah, 4dh
+                        jne pressZero
+                        CALL MoveRight
+                        jmp ExitControllGame
+        pressZero:              cmp   ah, 28
+                                jne   chat
+                                cmp   playersState[si], playerMoveToChoosePeice
+                                jne   stateLabel2
+                                CALL  SelectValidationOfPeice
+                                jmp   ExitControllGame
+        stateLabel2:            cmp   playersState[si], playerMoveToChooseAction
+                                jne   chat
+                                CALL  MovePeiceFromTo
+                                mov si, 2       ;black moved => mov peice then check check another player
+                                Call ChecKKing
+                                mov si, 1       ;black moved => mov peice then check check another player
+                                Call ChecKKing
+                                jmp   ExitControllGame
+                chat:           cmp ah,3Eh      ;chk if clik f4
+                                jne ExitControllGame
+                                mov playersState[si], PlayerEndedGame
+                                mov isGameEnded, 2
+                ExitControllGame:
+ControllGame    ENDP        ;si, al = value
+
 StartGame PROC FAR
 
-        Call port_initializatiion
         ; ____ inialize video mode ____;
         mov      ax, 0a000h                        ;for inline drawing
         mov      es, ax
@@ -2101,13 +2146,11 @@ StartGame PROC FAR
         
 
 MAIN_LOOP:
-        
-
-        
         ;================= Chk if ended ================;
 noActGM:    
- CALL UpdateCellWait
+        CALL UpdateCellWait
         CALL GetCurrTime
+        ;===== send
         mov ah, 1
         int 16h
         jz recieveletter
@@ -2115,22 +2158,26 @@ noActGM:
         int 16h
         mov VALUE, ah
         CALL SEND
-        mov si,1
-        jmp continue
-
+        mov si, PlayerGameNumber
+        CALL ControllGame
         ;===========Recieve from the othe player========;
-recieveletter:    mov si,3
-        mov dx , 3FDH
+recieveletter:    
+        mov dx , 3FDH   ; Line Status Register
+        in al , dx      ;chk if i recived something
+        AND al , 1    
+        cmp al, 1       
+        jne MAIN_LOOP      ;if not continue looping
+
+        mov dx , 03F8H  ;else get character in al|value
         in al , dx
-        AND al , 1
-        JZ noActGM
-        mov dx , 03F8H
-        in al , dx
-        mov VALUE , al
-        mov si,2
+        mov ah, al
+        mov si,PlayerGameNumber
+        xor si,3
+        CALL ControllGame
+        
         continue:;no recieve
          cmp isGameEnded, 1
-         jb ContGame            ;if blew one => not ended by player or kings
+         jb MAIN_LOOP            ;if blew one => not ended by player or kings
          cmp isGameEnded, 1
          jne finishGame
          CALL ENDgameWin
@@ -2138,53 +2185,6 @@ recieveletter:    mov si,3
         RET
         ;================= Continue Game ================;
         
-ContGame:
-
- 
-         mov ah, VALUE
-        
-        pressUp:    
-                        cmp ah, 48h
-                        jne pressLeft
-                        CALL MoveUp
-                        jmp noActGM
-
-        pressLeft:      cmp ah, 4bh
-                        jne pressDown
-                        Call MoveLeft
-                        jmp noActGM
-
-        pressDown:      cmp ah, 50h  
-                        jne pressRight
-                        CALL MoveDown
-                        jmp noActGM
-
-        pressRight:     cmp ah, 4dh
-                        jne pressZero
-                        CALL MoveRight
-        shrt2:          jmp MAIN_LOOP
-                        
-        pressZero:              cmp   ah, 11
-                                jne   chat
-                                cmp   playersState[si], playerMoveToChoosePeice
-                                jne   stateLabel2
-                                CALL  SelectValidationOfPeice
-                                jmp   shrt2
-        stateLabel2:            cmp   playersState[si], playerMoveToChooseAction
-                                jne   chat
-                                CALL  MovePeiceFromTo
-                        mov si, 2       ;black moved => mov peice then check check another player
-                        Call ChecKKing
-                        mov si, 1       ;black moved => mov peice then check check another player
-                        Call ChecKKing
-                        jmp   shrt2
-        chat:           cmp ah,3Eh      ;chk if clik f4
-                                jne goch
-                                mov playersState[si], PlayerEndedGame
-                                mov isGameEnded, 2
-
-        jmp shrt2
-goch: 
 ret
 StartGame ENDP
 ;_______ inialize board ___________;  
