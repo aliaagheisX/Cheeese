@@ -1,10 +1,19 @@
 ;Author: 
 ;DATE:
 ;This Progam
+;; after killed => exit in same menu
+;; after killed => and return home => print win
+;; after defat => print win
+;;
+;;
+;;
 ;======================
-        PUBLIC PlayerGameNumber
+        PUBLIC PlayerGameNumber, player1, player2,PrintMessageSt
         PUBLIC PrintMessageSt
         EXTRN StartGame:FAR
+        EXTRN StartChat:FAR
+        EXTRN InializeChar:FAR
+
         .286
         .MODEL HUGE
         .STACK 256
@@ -60,6 +69,7 @@
         PlayerCanGame db 0 ;1
 
         .CODE
+
 waitSec PROC   FAR                                                ;ax = row, cx = col =>>>> ax = current start point
                     push     ax
 
@@ -288,25 +298,11 @@ ChattingScreen Proc FAR                                       ; al ==> startfor 
                              ret                           
 ChattingScreen Endp
 
-PrintMessageSt    PROC FAR        ;dx = offset of message
-                pusha
-                mov dh, 24
-                mov dl, 0
-                mov bh, 0
-                mov ah, 2
-                int 10H
-                popa
-                ;;;;;;
-                mov ah, 09
-                int 21h
-                
-                RET
-PrintMessageSt    ENDP
-
+;game
 PrintMessageSt1    PROC FAR        ;dx = offset of message
                 pusha
-                mov dh, 24
-                mov dl, 1
+                mov dh, 24   ;y
+                mov dl, 0    ;x
                 mov bh, 0
                 mov ah, 2
                 int 10H
@@ -318,6 +314,53 @@ PrintMessageSt1    PROC FAR        ;dx = offset of message
                 RET
 PrintMessageSt1    ENDP
 
+;game player
+PrintMessageStP1    PROC FAR        ;dx = offset of message
+                pusha
+                mov dh, 24   ;y
+                mov dl, 30    ;x
+                mov bh, 0
+                mov ah, 2
+                int 10H
+                popa
+                ;;;;;;
+                mov ah, 09
+                int 21h
+                
+                RET
+PrintMessageStP1    ENDP
+
+;chat player
+PrintMessageStP    PROC FAR        ;dx = offset of message
+                pusha
+                mov dh, 23   ;y
+                mov dl, 30    ;x
+                mov bh, 0
+                mov ah, 2
+                int 10H
+                popa
+                ;;;;;;
+                mov ah, 09
+                int 21h
+                
+                RET
+PrintMessageStP    ENDP
+
+;chat
+PrintMessageSt    PROC FAR        ;dx = offset of message
+                pusha
+                mov dh, 23 ; row
+                mov dl, 0 
+                mov bh, 0
+                mov ah, 2 
+                int 10H
+                popa
+                ;;;;;;
+                mov ah, 09
+                int 21h
+                
+                RET
+PrintMessageSt    ENDP
 
 port_initializatiion PROC FAR
         pusha 
@@ -550,14 +593,16 @@ returnHme:    CALL DrawMainScreen             ;main graphically
                 je InviteChatL         ;if not send invit
                 mov VALUE, playerAcceptChatInv;send to white you accept invitation
                 CALL SEND                     ;send you accept invitation
-                CALL ChattingScreen          ;and start game
+                CALL StartChat          ;and start game
                 mov PlayerCanChat, 0    ;return to not can
-                jmp returnHme
+                jmp MnLoop
                 InviteChatL:
                         mov VALUE, playerSendingChatInv        ;send invitation
                         CALL SEND
                         lea dx, playerSendChatInvMess
                         CALL PrintMessageSt
+                        lea dx, player2
+                        CALL PrintMessageStP
                 shrtChkRcv:     jmp ChkRcv
                 shrtMnLoop:     jmp MnLoop
         chkF2:  cmp ah, 03Ch    ;chk f2
@@ -575,7 +620,9 @@ returnHme:    CALL DrawMainScreen             ;main graphically
                         mov VALUE, playerSendingGameInv        ;send invitation
                         CALL SEND
                         lea dx, playerSendGameInvMess
-                        CALL PrintMessageSt
+                        CALL PrintMessageSt1
+                        lea dx, player2
+                        CALL PrintMessageStP1
                         jmp ChkRcv
         chkE:   cmp ah, 1h
                 jne ChkRcv
@@ -594,7 +641,9 @@ returnHme:    CALL DrawMainScreen             ;main graphically
                 cmp al, playerSendingGameInv    ;if another player send game inv
                 jne chkIfAcceptGme              ;if not
                 lea dx, playerGetGameInvMess
-                CALL PrintMessageSt
+                CALL PrintMessageSt1
+                lea dx, player2
+                CALL PrintMessageStP1
                 mov PlayerCanGame, 1            ;can player
                 mov PlayerGameNumber,1          ;black
                 jmp shrtMnLoop
@@ -607,12 +656,15 @@ ChlIfSendChat:  cmp al, playerSendingChatInv    ;if another player send game inv
                 jne chkIfAcceptCht              ;if not
                 lea dx, playerGetChatInvMess
                 CALL PrintMessageSt
+                lea dx, player2
+                CALL PrintMessageStP
+
                 mov PlayerCanChat, 1            ;can player
         shrtMnLoop2:        jmp shrtMnLoop
 chkIfAcceptCht: cmp al, playerAcceptChatInv     ;if player accept invite
                 jne shrtMnLoop2
-                CALL ChattingScreen                  ;start game
-                jmp returnHme                   ;return home screen
+                CALL StartChat                  ;start game
+                jmp MnLoop                   ;return home screen
 
         jmp MnLoop
         ;
