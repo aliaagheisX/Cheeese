@@ -2304,6 +2304,28 @@ pusha
                 
                 cmp al, 1bh     ;chk if esc
                 je EXIT         ;if yes ext
+        ;        ;press for arrows 
+        ;         pressUpExit:    
+        ;                 cmp ah, 48h
+        ;                 je pressLeftExit
+        ;                 jmp EXIT
+
+        ; pressLeftExit:      cmp ah, 4bh
+        ;                 je pressDownExit
+                       
+        ;                 jmp EXIT
+
+        ; pressDownExit:      cmp ah, 50h  
+        ;                 je pressRightExit
+                       
+        ;                 jmp EXIT
+
+        ; pressRightExit:     cmp ah, 4dh
+        ;                    je pressZero
+        ;                    EXIT
+                        
+             
+             ;the end
 
                 mov ValueForchat, al   ;put character in vluae for SEND call
                 CALL SEND       ;send character
@@ -2329,6 +2351,7 @@ PrnRvs:         mov dx , 3FDH   ; Line Status Register
                 CALL PrnChar    ;print character
                 mov c2, dx      ;upate you cursor
                 CALL ChkCusrorUpdate
+                
 
                 jmp MNLP      ;loop
 
@@ -2440,12 +2463,15 @@ ContGame:
                                 mov isGameEnded, 2
 
         jmp shrt2
-goch: 
+goch:  call GameChat
+jmp ContGame
+
 ret
 StartGame ENDP
 ;_______ inialize board ___________;  
 Go_Chat proc far
 call GameChat
+
 ret
 Go_Chat endp
 
