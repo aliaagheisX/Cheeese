@@ -2330,8 +2330,6 @@ ContGame:
 
                 mov  dx , 03F8H  ;else get character in al|value
                 in al , dx                      
-                cmp from_against_player,'$'     ;is it first character to send
-                jnz get_to_cell                 ;if not get the second
                 cmp al, PlayerClkF4             ;chk if exit
                 jne storeFromCellAnotherPlayer  ;if not store from cell
                 mov isGameEnded, 2              ;else exit end game
@@ -2340,15 +2338,24 @@ ContGame:
                 mov from_against_player,al
                 mov VALUE, 1
                 CALL SEND
-                jmp MAIN_LOOP
-                ;==================== start move another player
-                get_to_cell:
+                
+
+        lppp:   mov dx , 3FDH   ; wait till second character
+                in al , dx      ; 
+                AND al , 1    
+                cmp al, 1       
+                jne lppp  
+
+                mov  dx , 03F8H  ;else get character in al|value
+                in al , dx   
+
                 mov to_against_player,al
                 mov si,PlayerGameNumber ;get player number
                 xor si,3
-                Call MovePeiceFromToAnotherPlayer        
-                mov from_against_player, '$'
-                mov to_against_player, '$'
+                Call MovePeiceFromToAnotherPlayer
+
+                jmp MAIN_LOOP
+                ;==================== start move another player
                 ;==================== start move another player
                 
 
