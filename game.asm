@@ -2074,6 +2074,7 @@ SendMoveToAnotherPlayer PROC FAR
 SendMoveToAnotherPlayer ENDP
 
 
+
 MovePeiceFromTo PROC    FAR ;si = playerNumber
                 pusha
                 ;=========== check if move validate =========;
@@ -2092,27 +2093,63 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 startMvePeiceF: 
                 CALL SendMoveToAnotherPlayer
                 ;======= handel communication
-                CALL AddPeiceToAnimationQueue
                 ;======= handel move cell **from  ======;
+                ;== Graphically
+               CALL MvePieceFromGraphics 
              ;out==>bl = cell
                 ;== Logically
-                mov bl, PlayerSelectedCell[si]
                 mov bh, 0
                 mov peiceTimer[bx], 0         ;return time state of cell
+                mov al, board[bx]             ;*********** al = peice that should move
+                mov board[bx], emptyCell      ;set empty cell
                 
 
                 ;======= handel move cell **to  ======;
                 ;== hande if pawn and about to promote
-                
+                mov dl, al      ;copy peice 
+                and dl, 7       ;get peice  type only
+                cmp dl, pawn    ;chk if pawn
+                jne skpPwn      ;if not pawn skip
+                cmp playerRows[si], 0        ;if first row 
+                je  PrmPwn
+                cmp playerRows[si], 7        ; or last row
+                jne skpKng                   ;he is pawn so skip king
+        PrmPwn: or al, 4        ;transfer peice to queen by set third bit
+                jmp skpKng
+        skpPwn: cmp dl, king    ;chk if king
+                jne skpKng
+                mov ah, playerCells[si]
+                mov kingsCells[si], ah
+
+                mov ah, playerCols[si]
+                mov kingsCols[si], ah
+
+                mov ah, playerRows[si]
+                mov kingsRows[si], ah
+                ;== Graphically
+        skpKng: CALL MvePieceToGraphics      ;out ===> bx = cell
                 ;== Logically
                 CALL SetTime                    ;(bx = cell) => peiceTime[bx] = curr time
                 CALL AddCellToWait
-                CALL ClrHighlightedMvs
-                mov playersState[si], playerMoveToChoosePeice
+                mov dl, board[bx]               ;get peice type that killed
+                and dl, peice
+                cmp dl, king                    ;chk if king
+                jne skipKingDead
+                mov playersState[si], PlayerWin ;if king win
+                xor si, 3           ; to toggle the player number to change states
+                mov playersState[si], PlayerLose
+                xor si, 3           ;to return the number of the player again
+                mov isGameEnded, 1
+        skipKingDead:        mov board[bx], al
+EXITMVEPEICE:   CALL ClrHighlightedMvs
+                cmp isGameEnded, 1
+                jne chngState
+                popa
+                RET
+        chngState:        mov playersState[si], playerMoveToChoosePeice
                 popa
                 RET
 MovePeiceFromTo ENDP
-
 
 
 CellToRowCol            PROC FAR        ;al = cell => al = row , cl = col
@@ -2595,7 +2632,6 @@ noActGM:
 ContGame:
         CALL UpdateCellWait
         CALL GetCurrTime
-        CALL StartAnimation
                 ;===== send
                 mov ah, 1
                 int 16h
