@@ -34,12 +34,18 @@
         EXTRN PlayerGameNumber:WORD
         EXTRN killedPeiceRow:BYTE
         EXTRN killedPeiceCol:BYTE
+        
+        EXTRN playerWinGame:BYTE
+        EXTRN player1:BYTE
+        EXTRN player2:BYTE
+        
 
         
         .286
         .MODEL HUGE
         .STACK 256
 .DATA
+        activePage equ 3
         ;======= chat
         ValueForchat DB '$$'
         msg1 DB 'Me: $'
@@ -90,8 +96,8 @@ to_against_player db '$'
         peice          equ 7
         
         ;____ players _____;
-        player1         equ 1
-        player2         equ 2
+        playerNum1         equ 1
+        playerNum2         equ 2
 
 
         PlayerClkF4             equ 128
@@ -137,8 +143,8 @@ to_against_player db '$'
         ; _____Important Position ______;
         checkmes db      "be carefull there  is a check$"
         Clearcheckmes db '                              $'
-        player1WinMess  db "Black Player Win!! $"
-        player2WinMess  db "White Player Win!! $"
+        player1WinMess  db " Win!!", 1h, '$'
+        player2WinMess  db " Loss!! $"
         prntExitMess  db "click f4 to exit the game $"
 
         timerArray dw 33 dup(0);[row,[4]col[4]] than have still time
@@ -951,7 +957,7 @@ InializeChar    PROC
                 mov ah, 02
                 int 10h
 
-                lea dx, msg1    ;print ME:
+                lea dx, player1    ;print ME:
                 mov ah, 9
                 int 21h
 
@@ -961,7 +967,7 @@ InializeChar    PROC
                 mov ah, 02      ;interrupt
                 int 10h
 
-                lea dx, msg2    ;print YOU:
+                lea dx, player2    ;print YOU:
                 mov ah, 9
                 int 21h
                 ;_____________________update cursors_____________________;
@@ -2314,8 +2320,8 @@ GetCurrTime     PROC    FAR ;
         
                 cmp cl, GameMin;chk it time not ended
                 jl  ContG      ;if not ended continue
-                mov playersState[player1], PlayerLose
-                mov playersState[player2], PlayerLose
+                mov playersState[playerNum1], PlayerLose
+                mov playersState[playerNum2], PlayerLose
                 mov isGameEnded, 1
                 popa
                 RET
@@ -2374,12 +2380,32 @@ GetCurrTime     ENDP
 ;==========================================================================;
 ;==========================================================================;
 ;==========================================================================;
-
+;if i win
 PrntMsgWIN1         PROC FAR ;bx = offset of message
         pusha
                 CALL ClearMessagePr
                 mov di,0
                 mov dl, 0
+                printPV31:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 23;row
+                        mov ah, 2
+                        int 10h
+                        
+                        mov al,player1[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 04h     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp player1[di],'$'
+                        jne printPV31
+
+                mov di, 0
                 printPV3:
                         ;dl = current col
                         mov bh, 0;pg number     ;set cursor
@@ -2409,6 +2435,26 @@ PrntMsgWIN2         PROC FAR ;bx = offset of message
                 CALL ClearMessagePr
                 mov di,0
                 mov dl, 0
+                printPV41:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 23;row
+                        mov ah, 2
+                        int 10h
+                        
+                        mov al,player1[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 04h     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp player1[di],'$'
+                        jne printPV41
+
+                mov di, 0
                 printPV4:
                         ;dl = current col
                         mov bh, 0;pg number     ;set cursor
@@ -2461,24 +2507,44 @@ pusha
 PrntExt         ENDP
 
 
-ENDgameWin      PROC      FAR
+ENDgameWin      PROC      FAR   
 
-                cmp playersState[1], PlayerWin
+                mov si, PlayerGameNumber
+                cmp playersState[si], PlayerWin
                 jne plyer2WIN
                 CALL PrntMsgWIN1
+                mov playerWinGame, 1
                 jmp WtTillExt
 
         plyer2WIN: CALL PrntMsgWIN2
+                   mov playerWinGame, 2
 
         WtTillExt:      CALL PrntExt
         lpWtTil:        mov ah, 1
                         int 16h
-                        jz lpWtTil
+                        jz chkExitRcv
 
                         mov ah, 0
                         int 16h
                         cmp ah,3Eh
+                        je ExitWaitSend
+                        
+                chkExitRcv:
+                        mov dx , 3FDH   ; wait till second character
+                        in al , dx      ; 
+                        AND al , 1    
+                        cmp al, 1       
+                        jne lpWtTil  
+
+                        mov  dx , 03F8H  ;else get character in al|value
+                        in al , dx  
+                        cmp al,3Eh
                         jne lpWtTil
+                        RET
+                        
+                ExitWaitSend:   mov VALUE, ah
+                                CALL SEND
+                                RET
                 RET
 ENDgameWin      ENDP
 
@@ -2626,10 +2692,6 @@ ContGame:
                 jmp MAIN_LOOP
 StartGame ENDP
 ;_______ inialize board ___________;  
-Go_Chat proc far
-
-ret
-Go_Chat endp
 
 
 ;; [move => cell] XOR validateMoves[cell], player

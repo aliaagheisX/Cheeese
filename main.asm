@@ -1,14 +1,11 @@
 ;Author: 
 ;DATE:
 ;This Progam
-;; after killed => exit in same menu
-;; after killed => and return home => print win
-;; after defat => print win
-;;
-;;
+;; if exit game[] print message => can wait
+;; animation
 ;;
 ;======================
-        PUBLIC PlayerGameNumber, player1, player2,PrintMessageSt
+        PUBLIC PlayerGameNumber, player1, player2,PrintMessageSt, playerWinGame
         PUBLIC PrintMessageSt
         EXTRN StartGame:FAR
         EXTRN StartChat:FAR
@@ -41,15 +38,17 @@
         mes2 db 'Press Enter To Continue$'
         
 
-        playerGetChatInvMess db  'play get chat invitation from$'
-        playerSendChatInvMess db 'play send chat invitation to:$'
-        playerGetGameInvMess  db 'play get game invitation from$'
-        playerSendGameInvMess db 'play send game invitation to:$'
-
+        playerGetChatInvMess db  'player get chat invitation from$'
+        playerSendChatInvMess db 'player send chat invitation to:$'
+        playerGetGameInvMess  db 'player get game invitation from$'
+        playerSendGameInvMess db 'player send game invitation to:$'
+        playerLoseGameMess db        'sorry for you loss nxt time !! $'
+        playerWinGameMess db         'congratulation on your win !!', 1h, '$'
         playerCantSentInv db 'there`s no another player in the room$'
         playerSendingNamemess db 'sendgin... $'
         playerRcvNamemess db 'reciving....$'
-        ;________screen states _________;
+        ClearMessage    db '                                    $'
+        ;________screen states _________; 
 
         playerEnterUserName     equ 0
         playerWaiting           equ 1
@@ -61,13 +60,18 @@
 
         PlayersChattingNow      equ 6
         PlayersPlayerNow        equ 7
+        PlayerExitApp           equ 10
 
         PlayerGameNumber        dw  0
         ;si = 1 => player number = 1 => black
         ;si = 2 => player number = 2 => white
         PlayerCanChat db 0 ;1
-        PlayerCanGame db 0 ;1
-
+        PlayerCanGame db 0 ;1 // another player send chat
+        PlayerSendChatState db 0;
+        playerWinGame db 0 ;1 = player win
+                           ;2 = player loss
+                           ;3 = me exit
+                           ;4 = him exit
         .CODE
 
 waitSec PROC   FAR                                                ;ax = row, cx = col =>>>> ax = current start point
@@ -311,6 +315,10 @@ PrintMessageSt1    PROC FAR        ;dx = offset of message
                 mov ah, 09
                 int 21h
                 
+                mov ah, 01h
+                mov ch, 0fh
+                mov cl, 0
+                int 10h
                 RET
 PrintMessageSt1    ENDP
 
@@ -318,7 +326,7 @@ PrintMessageSt1    ENDP
 PrintMessageStP1    PROC FAR        ;dx = offset of message
                 pusha
                 mov dh, 24   ;y
-                mov dl, 30    ;x
+                mov dl, 33    ;x
                 mov bh, 0
                 mov ah, 2
                 int 10H
@@ -326,6 +334,11 @@ PrintMessageStP1    PROC FAR        ;dx = offset of message
                 ;;;;;;
                 mov ah, 09
                 int 21h
+
+                mov ah, 01h
+                mov ch, 0fh
+                mov cl, 0
+                int 10h
                 
                 RET
 PrintMessageStP1    ENDP
@@ -334,7 +347,7 @@ PrintMessageStP1    ENDP
 PrintMessageStP    PROC FAR        ;dx = offset of message
                 pusha
                 mov dh, 23   ;y
-                mov dl, 30    ;x
+                mov dl, 33    ;x
                 mov bh, 0
                 mov ah, 2
                 int 10H
@@ -342,6 +355,11 @@ PrintMessageStP    PROC FAR        ;dx = offset of message
                 ;;;;;;
                 mov ah, 09
                 int 21h
+
+                mov ah, 01h
+                mov ch, 0fh
+                mov cl, 0
+                int 10h
                 
                 RET
 PrintMessageStP    ENDP
@@ -358,6 +376,11 @@ PrintMessageSt    PROC FAR        ;dx = offset of message
                 ;;;;;;
                 mov ah, 09
                 int 21h
+
+                mov ah, 01h
+                mov ch, 0fh
+                mov cl, 0
+                int 10h
                 
                 RET
 PrintMessageSt    ENDP
@@ -507,6 +530,32 @@ RcvName        PROC FAR
                 RET
 RcvName        ENDP
 
+ClrStatusBar    PROC    FAR
+                lea dx, ClearMessage
+                CALL PrintMessageSt
+                lea dx, ClearMessage
+                CALL PrintMessageSt1
+                REt
+ClrStatusBar    ENDP
+
+ChkExitGame     PROC    FAR
+                mov ah, 1               ;chk if click on something
+                int 16h                 
+                jz exitExitGame         ;if not nothing
+                mov ah, 0       
+                int 16h
+                cmp ah, 1h              ;chk if key pressed = esc
+                jne exitExitGame
+                mov VALUE, PlayerExitApp
+                CALL SEND
+                mov ax, 0003h                                  ; clear screen
+                int 10H
+                MOV      AH, 4CH
+                INT      21H
+        exitExitGame:
+                RET
+ChkExitGame     ENDP
+
 SendName        PROC FAR
                 lea dx, playerCantSentInv
                 CALL PrintMessageSt
@@ -521,7 +570,10 @@ SendName        PROC FAR
         keepNormalLp:        
                 mov VALUE, al
                 CALL SEND
-        keepWaitingForAcc:  mov dx , 3FDH   ; Line Status Register
+                
+        keepWaitingForAcc:  
+                CALL ChkExitGame
+                mov dx , 3FDH   ; Line Status Register
                 in al , dx      ;chk if i recived something
                 AND al , 1    
                 cmp al, 1       
@@ -531,6 +583,7 @@ SendName        PROC FAR
 
                 inc bx  ;update character
         jmp lpSn
+                
                 RET
 SendName        ENDP
 
@@ -548,7 +601,7 @@ WaitUserName    PROC FAR
 ;       then - start reciving other name
 
                 pusha
-
+                CALL ClrStatusBar
                 mov dx , 3FDH   ; Line Status Register
                 in al , dx      ;chk if i recived something
                 AND al , 1    
@@ -561,12 +614,59 @@ WaitUserName    PROC FAR
         SntThenRcv:
                 CALL SendName
                 Call RcvName
+
                 popa
                 RET
 WaitUserName    ENDP
 
 
+AfterGameEnd    PROC    FAR
+                mov ax, 0003h
+                int 10h
+                CALL DrawMainScreen  
+                ;======== print chat state
+                cmp PlayerSendChatState, 1
+                jne chkRcvChat
+                lea dx, playerSendChatInvMess
+                CALL PrintMessageSt
+                lea dx, player2
+                CALL PrintMessageStP
+                jmp GoPrntWin
 
+    chkRcvChat: cmp PlayerCanChat, 1
+                jne GoPrntWin
+                lea dx, playerGetChatInvMess
+                CALL PrintMessageSt
+                lea dx, player2
+                CALL PrintMessageStP
+                ;======= print game state
+        GoPrntWin: 
+                cmp playerWinGame, 1
+                jne chkPlayerLoss
+                lea dx, playerWinGameMess
+                CALL PrintMessageSt1
+                lea dx, player1
+                CALL PrintMessageStP1
+                jmp ExitAfGam
+        chkPlayerLoss:
+                cmp playerWinGame, 2
+                jne chkMeExit
+                lea dx, playerLoseGameMess
+                CALL PrintMessageSt1
+                lea dx, player1
+                CALL PrintMessageStP1
+                jmp ExitAfGam
+        chkMeExit:
+                cmp playerWinGame, 3
+                jne chkHimExit
+        chkHimExit:
+                cmp playerWinGame, 4
+                jne ExitAfGam
+        ExitAfGam:
+                mov playerWinGame, 0 
+
+                RET
+AfterGameEnd    ENDP
 
 MAIN    PROC FAR
         MOV AX, @DATA
@@ -579,8 +679,8 @@ MAIN    PROC FAR
     ;=========== inialize
     CALL DrawMainScreen  
     CALL WaitUserName
+    CALL DrawMainScreen  
 
-returnHme:    CALL DrawMainScreen             ;main graphically
     MnLoop: 
         mov ah, 1
         int 16h
@@ -594,7 +694,9 @@ returnHme:    CALL DrawMainScreen             ;main graphically
                 mov VALUE, playerAcceptChatInv;send to white you accept invitation
                 CALL SEND                     ;send you accept invitation
                 CALL StartChat          ;and start game
+                mov PlayerSendChatState,0
                 mov PlayerCanChat, 0    ;return to not can
+
                 jmp MnLoop
                 InviteChatL:
                         mov VALUE, playerSendingChatInv        ;send invitation
@@ -603,6 +705,7 @@ returnHme:    CALL DrawMainScreen             ;main graphically
                         CALL PrintMessageSt
                         lea dx, player2
                         CALL PrintMessageStP
+                        mov PlayerSendChatState,1
                 shrtChkRcv:     jmp ChkRcv
                 shrtMnLoop:     jmp MnLoop
         chkF2:  cmp ah, 03Ch    ;chk f2
@@ -614,7 +717,8 @@ returnHme:    CALL DrawMainScreen             ;main graphically
                 CALL SEND                     ;send you accept invitation
                 CALL StartGame          ;and start game
                 mov PlayerCanGame, 0    ;return to not can
-                jmp returnHme
+                CALL AfterGameEnd
+                jmp MnLoop
                 InviteGameL:
                         mov PlayerGameNumber, 2                ;be white in next game
                         mov VALUE, playerSendingGameInv        ;send invitation
@@ -626,8 +730,8 @@ returnHme:    CALL DrawMainScreen             ;main graphically
                         jmp ChkRcv
         chkE:   cmp ah, 1h
                 jne ChkRcv
-                mov ax, 0003h                                  ; clear screen
-                int 10H
+                mov VALUE, PlayerExitApp
+                CALL SEND
                 jmp EXTMN
                 ;===================== reciving ======================;
         ChkRcv: mov dx , 3FDH   ; Line Status Register
@@ -651,7 +755,8 @@ chkIfAcceptGme: cmp al, playerAcceptGameInv     ;if player accept invite
                 jne ChlIfSendChat
                 mov PlayerGameNumber,2          ;white
                 CALL StartGame                  ;start game
-                jmp returnHme                   ;return home screen
+                CALL AfterGameEnd
+                jmp MnLoop                   ;return home screen
 ChlIfSendChat:  cmp al, playerSendingChatInv    ;if another player send game inv
                 jne chkIfAcceptCht              ;if not
                 lea dx, playerGetChatInvMess
@@ -662,14 +767,22 @@ ChlIfSendChat:  cmp al, playerSendingChatInv    ;if another player send game inv
                 mov PlayerCanChat, 1            ;can player
         shrtMnLoop2:        jmp shrtMnLoop
 chkIfAcceptCht: cmp al, playerAcceptChatInv     ;if player accept invite
-                jne shrtMnLoop2
+                jne chkIfAnotherExt
                 CALL StartChat                  ;start game
-                jmp MnLoop                   ;return home screen
+                mov PlayerSendChatState,0
+                mov PlayerCanChat, 0
+                jmp shrtMnLoop2
+chkIfAnotherExt: cmp al, PlayerExitApp
+                 jne shrtMnLoop2
+                 CALL WaitUserName               ;return home screen
+                CALL DrawMainScreen  
+                jmp shrtMnLoop2
 
-        jmp MnLoop
         ;
          ;__end___;
         EXTMN:
+        mov ax, 0003h                                  ; clear screen
+        int 10H
         MOV      AH, 4CH
         INT      21H
 MAIN    ENDP
