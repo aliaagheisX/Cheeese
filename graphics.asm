@@ -1,6 +1,6 @@
 PUBLIC DrawBoard, DrawSquareBord,DrawSquareBordSm, MvePlayerFromGraphics 
 PUBLIC DrawHighlightedMvs, ClrHighlightedMvs, MvePieceToGraphics, MvePieceFromGraphics
-PUBLIC DrawPlayers
+PUBLIC DrawPlayers, GetCellColor, DrawSquare, DrawImg, DisplayMessage
 PUBLIC killedPeicePos ,killedPeiceRow, killedPeiceCol 
 
 
