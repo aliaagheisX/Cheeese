@@ -1,36 +1,66 @@
 
-# Cheeese
+# ♟️ Cheeese app
+A multiplayer app where you can chat and play fast chess 
+with no players turns and 3 seconds between each peice moves. 
+*using the assembly x86 with serial communication*.
 
-A brief description of files & what in it
+## Screenshots
+- players should enter their names before enter the game
+  ![App Screenshot](https://github.com/aliaagheisX/Cheeese/blob/master/screenshots/8.png)
 
+
+- player can wait on main screen till there's another player enter 
+  ![App Screenshot](https://github.com/aliaagheisX/Cheeese/blob/master/screenshots/1.png)
+
+- the app consist of invitaitions and acceptance to chat or game one player should send an invitaion and the other should accept it**the status bar show every nofitcaition**
+  ![App Screenshot](https://github.com/aliaagheisX/Cheeese/blob/master/screenshots/2.png)
+
+- chat screen 
+  ![App Screenshot](https://github.com/aliaagheisX/Cheeese/blob/master/screenshots/3.png)
+
+- game screen with 
+  - inline chatting
+  - killed peices drawn  
+  - text warnings of peices killed
+  - text on who win and loss 
+  - warning if there's a **check**
+  ![App Screenshot](https://github.com/aliaagheisX/Cheeese/blob/master/screenshots/4.png)
+  ![App Screenshot](https://github.com/aliaagheisX/Cheeese/blob/master/screenshots/5.png)
+  ![App Screenshot](https://github.com/aliaagheisX/Cheeese/blob/master/screenshots/6.png)
+  ![App Screenshot](https://github.com/aliaagheisX/Cheeese/blob/master/screenshots/7.png)
+
+
+
+
+## Run Locally
+
+1 - Clone the project
+
+  ```bash
+    git clone https://github.com/aliaagheisX/Cheeese.git
+  ```
+
+2 - Go to the project directory
+
+```bash
+  cd Cheeese
 ```
-    ├── ...
-    |── graphics.inc
-    |   ├── CLRS                                                           # clear screen
-    |   ├── DrawGrid (width of square, colors)                             # draw grid 
-    |   ├── DrawImg  (img, width of image, startPoint)                     # draw image **skipping color 4**
-    |   ├── Available_BackGround (startPoint ,highlightColor ,boardWidth)  # Color Background Of available move  
-    ├── main.asm                    # main  running file
-    │   ├── board peices code  
-    │   ├── color code
-    │   ├── gridColor, square width, image width
-    │   ├── images of peices
-    │   └── board 8x8 => peices|emptyCell
-    ├── converter.py                    # convert png 25x25 to bitmap
-    │   ├── filename                    # will print bitmap of it
-    ├── r/                    # chess set png 25*25
-    └── ...
+
+3 - Open any dos emulators (dosbox, dosbox-x, jsdos, msdos)
+
+4 - initaliz ports on serial communication 
+  **i used virtual serial port to establish serial communication on same device**
+
+5 - run excutable file
+```bash
+  main
 ```
 
 
-## how to run it locally
+## Authors
 
-1. download it 
-2. MASM/TASM extension
-3. open vs code settings 
-    - search on masm
-    - Assembler option on ```tasm```
-    - scroll down to ```emulator```
-    - make sure it select ```dosBox```
-4.  open main.asm
-5. right click -> run asm file
+- [@aliaa gheis](https://github.com/aliaagheisX)
+- [@sara bisheer](https://github.com/SH8664)
+- [@mennatallah ahmed](https://github.com/Menna-Ahmed7)
+- [@menna mohamed](https://github.com/mennamohamed0207)
+
