@@ -1,6 +1,8 @@
-PUBLIC DrawBoard, DrawSquareBord, MvePlayerFromGraphics 
+PUBLIC DrawBoard, DrawSquareBord,DrawSquareBordSm, MvePlayerFromGraphics 
 PUBLIC DrawHighlightedMvs, ClrHighlightedMvs, MvePieceToGraphics, MvePieceFromGraphics
 PUBLIC DrawPlayers
+PUBLIC killedPeicePos ,killedPeiceRow, killedPeiceCol 
+
 
 EXTRN color:BYTE
 EXTRN board:BYTE
@@ -15,6 +17,8 @@ EXTRN PlayerPos:WORD
 EXTRN PlayerSelectedPos:WORD
 EXTRN PlayerSelectedCell:BYTE
 EXTRN PlayerSelectedRow:BYTE
+EXTRN PlayerGameNumber:WORD
+
 
 .286
 .MODEL SMALL
@@ -42,7 +46,11 @@ varkilled db ?
 
         boardWidth     equ 23
         imageWidth     equ 23
+        imageWidthSm     equ 7
         emptyCell     equ 0
+        killedPeicePos dw 20664 ;23*8
+        killedPeiceRow db 0 ;23*8
+        killedPeiceCol db 0 ;23*8
 .CODE
 
 
@@ -82,6 +90,8 @@ loop lr
             RET
 DrawGrid ENDP 
 
+
+
 DrawImg     PROC        FAR ;al = peice di = startPoint
                                 cmp ax, emptyCell ;check if empty cell
                                 jne DrawImglabel  ;if not start drawing
@@ -114,12 +124,39 @@ DrawImg     PROC        FAR ;al = peice di = startPoint
                                 skip:   inc di;update cursor
                                         inc bx;update pixel of img
                                 loop    lp2
+                                
                                 add di, 320-imageWidth;return to first col next row
                                 pop cx
                         loop lp1
         popa
         RET
 DrawImg ENDP 
+
+
+DrawSquareBordSm PROC    FAR ;di = start position, al = highlight color 
+                pusha
+                ;=========== draw first row ==========;
+                add di, 320+1   
+                mov cx, boardWidth-2
+                REP STOSB
+                
+                ;=========== draw columns ==========;
+                add di, 320-boardWidth+2 ;to return di to first col next row
+                mov cx, boardWidth-4   ;number of pixels of one column to draw
+        DWSQ3:  STOSB                  ;draw pixel in first col
+                add di, boardWidth-4   ;update pos for nxt col
+                STOSB                  ;draw pixel in sec col
+                add di, 320-boardWidth+2 ;update di to first col next row
+        loop DWSQ3
+
+
+                ;=========== draw last row ==========;
+                mov cx, boardWidth-2
+                REP STOSB
+
+        popa
+        RET
+DrawSquareBordSm ENDP 
 
 DrawSquareBord PROC    FAR ;di = start position, al = highlight color 
                 pusha
@@ -145,9 +182,37 @@ DrawSquareBord PROC    FAR ;di = start position, al = highlight color
         RET
 DrawSquareBord ENDP 
 
+DrawPlayers     PROC    FAR
+                push ax
+                push di
+                push si
+                
+                mov si, PlayerGameNumber
+                shl si, 1
+                mov di, PlayerPos[si]
+                mov al, 4
+                CALL DrawSquareBord
+
+                pop si
+                pop di
+                pop ax
+                RET
+DrawPlayers     ENDP
+
 DrawBoard       PROC    FAR ;inialize first with all peices
                 CALL DrawGrid 
-                
+                pusha
+                mov ah,6  ; function 6
+                mov al,15  ; scroll by 1 line
+                mov bh,3h  ; normal video attribute
+
+
+                mov ch,8  ; upper left row after you:
+                mov cl,23  ; upper left col
+                mov dh,22 ; lower right row
+                mov dl,39 ; lower right col
+                int 10h
+                popa
 
                 pusha 
                         mov si, 0 ;initial cell      
@@ -177,28 +242,10 @@ DrawBoard       PROC    FAR ;inialize first with all peices
                 pop cx
                 loop DrawBoardLoop1
         popa
-        mov al, 4
-        mov di, PlayerPos[2]
-        CALL DrawSquareBord
-        mov di, PlayerPos[4]
-        CALL DrawSquareBord
+        CALL DrawPlayers
         RET
 DrawBoard       ENDP     
 
-DrawPlayers     PROC    FAR
-                push ax
-                push di
-                
-                mov al, 4
-                mov di, PlayerPos[2]
-                CALL DrawSquareBord
-                mov di, PlayerPos[4]
-                CALL DrawSquareBord
-
-                pop di
-                pop ax
-                RET
-DrawPlayers     ENDP
 
 DrawSquare PROC    FAR ;di = start position, al = highlight color 
         pusha
@@ -264,46 +311,46 @@ RET
 MvePieceFromGraphics    ENDP  ;si = playerNumber, bx=cell ===> al = cell color, di = pos **bl = cell
 
 DisplayMessage Proc far ;bx --> input(to cell)
-pusha
- mov bh, 0;pg number
-                        mov dh, 24;row
-                        mov dl, 00
-                        mov ah, 2
-                        int 10h
-                        ; lea si , Kingkill
-                        ; mov si,0
-                        ;------------------Clearing status--------------------;
-                        pusha
-                        mov di,0
-                        printclear:
-                        mov al,Clearcheckmes[di]
-                                mov ah, 09h
-                                mov bh, 0
-                                mov bl, 0fh
-                                mov cx, 1
-                                int 10h
-                                inc dl
-                                mov bh, 0;pg number
+        pusha
+        mov bh, 0;pg number
                                 mov dh, 24;row
+                                mov dl, 00
                                 mov ah, 2
                                 int 10h
-                                inc di
-                        
+                                ; lea si , Kingkill
+                                ; mov si,0
+                                ;------------------Clearing status--------------------;
+                                pusha
+                                mov di,0
+                                printclear:
+                                mov al,Clearcheckmes[di]
+                                        mov ah, 09h
+                                        mov bh, 0
+                                        mov bl, 0fh
+                                        mov cx, 1
+                                        int 10h
+                                        inc dl
+                                        mov bh, 0;pg number
+                                        mov dh, 24;row
+                                        mov ah, 2
+                                        int 10h
+                                        inc di
+                                
 
-                                cmp Clearcheckmes[di],'$'
-                                jnz printclear     
-                                popa
-                ;----------------------------------------------;
-                 mov bh, 0;pg number
-                        mov dh, 24;row
-                        mov dl, 00
-                        mov ah, 2
-                        int 10h
-mov cl,board[bx]   
-mov ch,00
-and cl,00000111b
-cmp cx,pawn
-jnz crook 
+                                        cmp Clearcheckmes[di],'$'
+                                        jnz printclear     
+                                        popa
+                        ;----------------------------------------------;
+                        mov bh, 0;pg number
+                                mov dh, 24;row
+                                mov dl, 00
+                                mov ah, 2
+                                int 10h
+        mov cl,board[bx]   
+        mov ch,00
+        and cl,00000111b
+        cmp cx,pawn
+        jnz crook 
               pusha
                 mov di,0
                 printP:
@@ -324,10 +371,10 @@ jnz crook
                         cmp Pawnnkill[di],'$'
                         jnz printP     
                         popa
-jmp Ex
-crook:
-cmp cx,rook
-jnz cKing
+        jmp Ex
+        crook:
+        cmp cx,rook
+        jnz cKing
               pusha
                 mov di,0
                 printRo:
@@ -348,10 +395,10 @@ jnz cKing
                         cmp Rookkill[di],'$'
                         jnz printRo    
                         popa
-jmp Ex
-cKing:
-cmp cx,king
-jnz cKnight 
+        jmp Ex
+        cKing:
+        cmp cx,king
+        jnz cKnight 
                pusha
                 mov di,0
                 printK:
@@ -371,10 +418,10 @@ jnz cKnight
                         cmp Kingkill[di],'$'
                         jnz printK    
                         popa
-jmp Ex
-cKnight:
-cmp cx,knight
-jnz cQueen
+        jmp Ex
+        cKnight:
+        cmp cx,knight
+        jnz cQueen
                pusha
                 mov di,0
                 printKn:
@@ -395,10 +442,10 @@ jnz cQueen
                         cmp Knightkill[di],'$'
                         jnz printKn    
                         popa
-jmp Ex
-cQueen:
-cmp cx,Queen
-jnz cBishop 
+        jmp Ex
+        cQueen:
+        cmp cx,Queen
+        jnz cBishop 
                pusha
                 mov di,0
                 printQ:
@@ -419,10 +466,10 @@ jnz cBishop
                         cmp Queenkill[di],'$'
                         jnz printQ    
                         popa
-jmp Ex
-cBishop:
-cmp cx,bishop
-jnz Ex
+        jmp Ex
+        cBishop:
+        cmp cx,bishop
+        jnz Ex
                pusha
                 mov di,0
                 printB:
@@ -458,6 +505,20 @@ MvePieceToGraphics      PROC    FAR;si = playerNumber, al = peice =====> di = po
                         cmp board[bx], emptyCell        ;chk if empty
                         je  stMvPc                      ;if empty skip clear part
                         ;START clear square
+                        pusha
+                        mov al, board[bx]
+                        mov di, killedPeicePos
+                        CALL DrawImg          ;di = position , al = peice
+                        add killedPeicePos, 23
+                        add killedPeiceCol, 1
+                        cmp killedPeiceCol, 6
+                        jne skpUpdateRow
+                        mov killedPeiceCol, 0
+                        add killedPeicePos, 320*23;to go down row of peices
+                        sub killedPeicePos, 23*6;to return to first col
+
+                        
+        skpUpdateRow:                 popa
                         Call DisplayMessage
                         mov bh, playerRows[si]          ;bh = row
                         push ax                         ;store al

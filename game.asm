@@ -13,25 +13,62 @@
                 ;  5    40 ..................................
                 ;  6    48 ..................................
                 ;  7    56..............................  63
+                ;==================================================
+                ;TODO
+                ;- don't draw another player move => miss things up
+                ;- exit for both on click f4
 
         PUBLIC StartGame
         PUBLIC boardWidth, imageWidth, color, board, Bpawn, validateMoves, highlightPeiceMvs
         PUBLIC playerCells, playerCols, playerRows, PlayerPos, highlightColor, PlayerSelectedCell,PlayerSelectedRow, PlayerSelectedPos
-        EXTRN DrawGrid:FAR
         EXTRN DrawBoard:FAR
         EXTRN DrawSquareBord:FAR
+        EXTRN DrawSquareBordSm:FAR
         EXTRN MvePlayerFromGraphics:FAR
         EXTRN DrawHighlightedMvs:FAR
         EXTRN ClrHighlightedMvs:FAR
         EXTRN MvePieceToGraphics:FAR
         EXTRN MvePieceFromGraphics:FAR
         EXTRN DrawPlayers:FAR
+        EXTRN killedPeicePos:WORD
+        EXTRN PlayerGameNumber:WORD
+        EXTRN killedPeiceRow:BYTE
+        EXTRN killedPeiceCol:BYTE
+        
+        EXTRN playerWinGame:BYTE
+        EXTRN player1:BYTE
+        EXTRN player2:BYTE
+        
+
+        
         .286
         .MODEL HUGE
         .STACK 256
 .DATA
+        activePage equ 3
+        ;======= chat
+        ValueForchat DB '$$'
+        msg1 DB 'Me: $'
+        msg2 DB 'You: $'
+        keypressed db ?
+        
+        c1 DW 0
+        c2 DW 0400h
+        startCol db 23
+        rowSize db 40
 
+        stausLineRow equ 7      ;endRow-2 => 
+                                ;line sepreate status from chat
+        
+        ChatLineRow equ  3      ;line seperate two chats
+                                ;(end-start)/2
+                                ;start = 0
+        PlayerSentMessState     equ 64
+        ;==== chat
+;_______sending&recieving__________;
 
+from_against_player db '$'
+to_against_player db '$'
 ;__________Peices________;
 
         color          db  31, 9
@@ -51,7 +88,7 @@
         knight         equ 3
         bishop         equ 4
         queen          equ 5
-        king           equ 6
+        king           equ 6 
         ; ____ peice color ____ ;
         black          equ 8
         white          equ 0
@@ -59,15 +96,19 @@
         peice          equ 7
         
         ;____ players _____;
-        player1         equ 1
-        player2         equ 2
+        playerNum1         equ 1
+        playerNum2         equ 2
+
+
+        PlayerClkF4             equ 128
         playerMoveToChoosePeice equ 0
         playerMoveToChooseAction equ 1
         PlayerLose equ 2
         PlayerWin equ 3
         PlayerEndedGame equ 4
 
-        isGameEnded db 0
+        isGameEnded db 0 ;1 => game ended & 2 game ended by player
+        
         isKingCheck db ?, 0, 0
         playersState db ?, playerMoveToChoosePeice, playerMoveToChoosePeice
         playerCells db ?, 0, 56
@@ -84,26 +125,33 @@
         PlayerSelectedRow  db ?, ?, ?
         PlayerSelectedPos  dw ?, ?, ?
 
+
         lstValidDirection dw 8 dup(?);
 
         validateMoves db 64 dup(0)
         validateMovesTemp db 64 dup(0)
 
+
         ; ____ board ____ ;
         board          db  rook+black, knight+black, bishop+black, queen+black, king+black, bishop+black, knight+black, rook+black
-                       db  7 dup(pawn+black), emptyCell
+                       db  8 dup(pawn+black)
                        db  4 dup(8 dup(emptyCell))
                        db  8 dup(pawn)
                        db  rook, knight, bishop, queen, king, bishop, knight, rook
         peiceTimer     dw  64 dup(0)
-        TmDiff equ 1
+        TmDiff equ 3
         ; _____Important Position ______;
-        WKingpos db 7,5,60
-        BKingpos db 3 dup(?)
-        WkingCheck db ? ,4 ,60
         checkmes db      "be carefull there  is a check$"
         Clearcheckmes db '                              $'
+        player1WinMess  db " Win!!", 1h, '$'
+        player2WinMess  db " Loss!! $"
+        prntExitMess  db "click f4 to exit the game $"
 
+        timerArray dw 33 dup(0);[row,[4]col[4]] than have still time
+                                ;to print
+        headTimeArray db 0
+        tailTimeArray db 0
+         VALUE DB '$$'
 
 Bpawn DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 
  DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
@@ -418,16 +466,50 @@ Wking DB 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
 .code
 
 
+port_initializatiion PROC FAR
+        pusha 
+        mov dx,3fbh ; Line Control Register
+        mov al,10000000b ;Set Divisor Latch Access Bit
+        out dx,al 
+        mov dx,3f8h
+        mov al,0ch
+        out dx,al
+        mov dx,3f9h
+        mov al,00h
+        out dx,al
+        mov dx,3fbh
+        mov al,00011011b
+        out dx,al
+        popa
+        ret
+port_initializatiion EndP
+SEND            PROC
+                pusha
+                mov dx , 3FDH 
+        AG:     in al, dx       ;Read Line Status
+                AND al , 00100000b
+                JZ AG
+                mov dx , 3F8H ; Transmit data register
+                mov al,VALUE
+                out dx , al 
+                popa
+                RET
+SEND            ENDP
+
+
+
 EndGameState    PROC FAR
 
                 
-;========= inialize board =========;
+        ;========= inialize board =========;
                 mov cx, 64      ;clear board
                 mov si, 0
+                mov di, 0
         inializeBoard:  mov board[si], 0
-                mov peiceTimer[si], 0
+                mov peiceTimer[di], 0;dw
                 mov validateMoves[si], 0
                 inc si
+                add di, 2
                 loop inializeBoard
 
                 mov board[0], black+rook
@@ -481,9 +563,25 @@ EndGameState    PROC FAR
 
                 mov PlayerPos[2], 0
                 mov PlayerPos[4], 51520
-                
+                ;======= king and check
+                mov isKingCheck[1], 0
+                mov isKingCheck[2], 0
+                mov kingsCells[1], 4
+                mov kingsCells[2], 60
+                mov kingsRows[1], 0
+                mov kingsRows[2], 7
+                mov kingsCols[1], 4
+                mov kingsCols[2], 4
+        ;========================================
+                mov killedPeicePos, 20664
+                mov killedPeiceRow, 0 
+                mov killedPeiceCol, 0 
+
         RET
 EndGameState    ENDP
+
+
+
 
 RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 push ax
@@ -500,6 +598,34 @@ RowColToCell    PROC FAR ;al = row  cl = col  =>> si = CellNumber
                 RET
 RowColToCell ENDP 
 
+RowColToStartPos PROC   FAR
+;al =row    cl=col   =>di=StartPos
+
+        push ax
+        push bx
+        push cx
+        push dx
+
+        mov ah,0
+        mov di,ax
+        mov al,boardWidth       ;al = width|hight
+        mul cl                  ;al = width*col
+        mov bx,ax               ;bx = width*col
+
+        mov dx,0
+        mov ax,320*boardWidth   ;ax=320*hight
+        mul di                  ;ax=320*hight*row
+
+
+        mov di,ax               ;di=320*row*hight
+        add  di,bx              ;di=320*row*hight+width*col
+
+        pop dx       
+        pop cx       
+        pop bx       
+        pop ax       
+        RET
+RowColToStartPos ENDP 
 
 
 ;________ __________ ___________;
@@ -569,18 +695,21 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                 cmp si, 1 ;chk if player black
                 jne PaP2
 
-        PaP1:   
-                PwnMv1: cmp playerRows[si], 1           ;down twice in first move
-                        jne PwnMv2
-                        mov al, board[di+16]
-                        cmp al, emptyCell
-                        jne PwnMv2
-                        mov validateMoves[di+16], dl
-                PwnMv2: ;down one if
+        PaP1:           cmp playerRows[si], 7
+                        je EXITPP1
+                PwnMv1: ;down one if
                         mov al, board[di+8]
                         cmp al, emptyCell
-                        jne PwnMv3
+                        jne PwnMv3                      ;skip down twice if not valid
                         mov validateMoves[di+8], dl
+                PwnMv2: ;down twice if
+                        cmp playerRows[si], 1           ;down twice in first move
+                        jne PwnMv3
+                        mov al, board[di+16]
+                        cmp al, emptyCell
+                        jne PwnMv3
+                        mov validateMoves[di+16], dl
+                        
 
                 PwnMv3: ;right down
                         cmp PlayerCols[si], 7
@@ -609,18 +738,21 @@ ValidatePawn    PROC FAR  ;al = row cl = col si = player di = cell
                 EXITPP1:
                 POPA
                 RET
-        PaP2:
-                PwnMv12: cmp playerRows[si], 6          ;up twice in first move
-                        jne PwnMv22
-                        mov al, board[di-16]
-                        cmp al, emptyCell
-                        jne PwnMv22
-                        mov validateMoves[di-16], dl
-                PwnMv22: ;up one if
+        PaP2:           cmp playerRows[si], 0
+                        je EXITPP2
+                PwnMv12: ;up one if
                         mov al, board[di-8]
                         cmp al, emptyCell
                         jne PwnMv32
                         mov validateMoves[di-8], dl
+                        
+                PwnMv22:;up twice if
+                        cmp playerRows[si], 6          ;up twice in first move
+                        jne PwnMv32
+                        mov al, board[di-16]
+                        cmp al, emptyCell
+                        jne PwnMv32
+                        mov validateMoves[di-16], dl
 
                 PwnMv32: ;down -> left
                         cmp PlayerCols[si], 0
@@ -803,6 +935,234 @@ ValidateRook    Proc ;al = row cl = col si = player di = cell
                 RET
 ValidateRook    ENDP 
 
+
+;========================= chat
+;========================= chat
+;========================= chat
+
+;_____game chat__________;
+InializeChar    PROC
+                ;__________ inialize cursor ________;
+                mov ah,  0              ;me:cursor => row
+                mov al, startCol        ;me:cursor => col
+                mov c1, ax
+
+                mov ah,  ChatLineRow    ;you:cursor => row 
+                inc ah                  ;ender the line sep bet chat
+                mov al, startCol        ;you:cursor => col
+                mov c2, ax
+                ;__________ print me ________;
+                mov dx, c1      ;set cursor
+                mov bh, 0
+                mov ah, 02
+                int 10h
+
+                lea dx, player1    ;print ME:
+                mov ah, 9
+                int 21h
+
+                ;___________________print YOU_______________________;
+                mov dx, c2      ;set cursor
+                mov bh, 0       ;page
+                mov ah, 02      ;interrupt
+                int 10h
+
+                lea dx, player2    ;print YOU:
+                mov ah, 9
+                int 21h
+                ;_____________________update cursors_____________________;
+                mov al, startCol
+                add al, 3               ;just maragin
+
+                mov ah, 1
+                mov c1, ax      ;update cursos to nxt line
+                mov ah, ChatLineRow
+                add ah, 2
+                mov c2, ax      ;update cursos to nxt line
+                ;_____________ draw line seperate between chats___________________;
+                mov dh, ChatLineRow
+                mov dl, startCol       ;lineCol
+                mov bh, 0       ;set cusor to line row
+                mov ah, 02
+                int 10h
+
+                mov al, '_'     ;charcter
+                mov bl, 03h     ;color
+                mov bh, 0       ;page
+                mov ch, 0
+                mov cl, rowSize      ;count
+                sub cl, startCol
+                mov ah, 09      ;repeat count
+                int 10h
+                ;_____________ draw line___________________;
+                mov dh, stausLineRow
+                mov dl, startCol     ;lineCol
+                mov bh, 0       ;set cusor to line row
+                mov ah, 02
+                int 10h
+
+                 mov al, '_'     ;charcter
+                mov bl, 03h     ;color
+                mov bh, 0       ;page
+                mov ch, 0
+                mov cl, rowSize      ;count
+                sub cl, startCol
+                mov ah, 09      ;repeat count
+                int 10h
+                
+                RET
+InializeChar    ENDP
+
+
+PrnChar         PROC    ;(dx = cursor position to print) ==> (dx = updated cursor position)
+                
+                mov bh, 0       ;set cursor position to (dx = cursor position to print)
+                mov ah, 02      ;
+                int 10h         ;
+
+                mov al, ValueForchat   ;get character to print
+                cmp  al, 13     ;check if not enter
+                jne prnN        ;if not print it as normal
+
+                add dh, 1
+                mov dl, startCol;set cursor col to start col
+                mov bh, 0       ;set cursor position to (dx = cursor position to print)
+                mov ah, 02      ;
+                int 10h         ;
+                RET   ;and exit
+                ;__________________________________________________;
+                
+prnN:     
+                mov dl, al      ;print character normally
+                mov ah, 2
+                int 21h
+
+ExPrnChar:      
+                mov ah, 3       ;get updated cursor (in dx)
+                mov bh, 0
+                int 10h
+
+                RET
+PrnChar         ENDP
+
+
+ScrollUP1       PROC           ;dx = cursor poisiotn
+
+                mov ah,6                ; function 6 to scroll up
+                mov al,1                ; scroll by 1 line
+                mov bh,0                ; normal video attribute = black
+                mov ch,1                ; upper left row
+                mov cl,startCol         ; upper left col
+                mov dh,ChatLineRow      ; lower right row before chat line sep
+                dec dh
+                mov dl,rowSize          ; lower right col
+                int 10h
+                RET
+ScrollUP1        ENDP
+
+ScrollUP2        PROC    ;dx = cursor poisiotn
+                mov ah,6  ; function 6
+                mov al,1  ; scroll by 1 line
+                mov bh,0  ; normal video attribute
+
+                mov ch,ChatLineRow  ; upper left row after you:
+                add ch, 2
+                mov cl,startCol  ; upper left col
+
+                mov dh,stausLineRow ; lower right row
+                dec dh
+                mov dl,rowSize ; lower right col
+                int 10h
+                RET
+ScrollUP2        ENDP
+
+
+ChkCusrorUpdate PROC
+                pusha
+chkMeCursor:    mov dx, c1                      ;dx = me cursor
+                cmp dh, ChatLineRow             ;chk if in nxt state row = chat line seperator
+                jne chkNlCursor1                ;if not chk if enter new col         
+                CALL ScrollUP1                  ;else scroll up
+                mov dh, ChatLineRow             ;update to be in row before line
+                dec dh                          ;
+                mov dl, startCol                ;update col to be in start col
+                mov c1, dx                      ;mov ValueForchat into cursor
+                jmp chkYouCursor                ;chk nxt cursor
+
+chkNlCursor1:   cmp dl, startCol             ;chk if cursor col be less than start col
+                jae chkYouCursor             ;if not chk another cursor
+                mov dl, startCol             ;else return cursor to start col
+                mov c1,dx
+
+chkYouCursor:   mov dx, c2                      ;dx = you cursor
+                cmp dh, stausLineRow            ;chk if in nxt state row = status line seperator
+                jne chkNlCursor2                ;if not chk if enter new col   
+                CALL ScrollUP2                  ;else scroll up
+                mov dh, stausLineRow            ;update to be in row before line
+                dec dh
+                mov dl, startCol                ;update col to be in start col
+                mov c2, dx                      ;mov ValueForchat into cursor
+                jmp EXITChkCur                  ;and exit function
+
+chkNlCursor2:   cmp dl, startCol             ;chk if cursor col be less than start col
+                jae EXITChkCur                ;if not chk another cursor
+                mov dl, startCol             ;else return cursor to start col
+                mov c2,dx
+                     
+EXITChkCur:
+                popa
+                RET
+ChkCusrorUpdate ENDP
+
+
+SendMessage     PROC  FAR
+
+                pusha                           ;send first byte of state
+                mov VALUE, PlayerSentMessState
+                CALL SEND
+
+                 RcvLp1:  mov dx , 3FDH   ; Line Status Register
+                        in al , dx      ;chk if i recived something
+                        AND al , 1    
+                        cmp al, 1       
+                        jne RcvLp1      ;if not continue looping
+                        mov dx , 03F8H  ;else get character in al|value
+                        in al , dx
+
+                popa
+
+                pusha                   ;send second byte of char  & update cell
+                mov ValueForchat, al   ;put character in vluae for SEND call
+                mov VALUE, al   ;put character in vluae for SEND call
+                CALL SEND       ;send character
+
+                mov dx, c1      ;set me cursor
+                CALL PrnChar    ;print character
+                mov c1, dx      ;update me cursor
+                CALL ChkCusrorUpdate    ;scroll if not
+                popa
+
+                RET
+SendMessage     ENDP
+
+RcvMessage     PROC  FAR        ;(al = print char)
+                pusha
+
+                mov ValueForchat, al
+                mov dx, c2      ;set you cursor
+                CALL PrnChar    ;print character
+                mov c2, dx      ;upate you cursor
+                CALL ChkCusrorUpdate
+
+                popa
+                RET
+RcvMessage     ENDP
+
+
+;============================================
+;============================================
+;============================================
+;============================================
 
 ValidateBishop  Proc ;al = row cl = col si = player di = cell
                 pusha
@@ -1302,6 +1662,7 @@ MoveDown        ENDP ;si = player numbers
 ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't move]
                 push    ax
                 push    dx
+                push di
                         cmp peiceTimer[bx], 0   ;check if never move
                         je STime                ;if yes return Succes
 
@@ -1316,17 +1677,44 @@ ChKTime         PROC    FAR     ;board cell = bx >>> cx=1[can move] | cx=0[can't
                         cmp dh, al              ;chk CurrSec-3 >= Stop sec
                         jae STime                ;if true succ & leave
                         mov cx,0                ;else set cx=0 & leave
+                        pop di
                         pop dx
                         pop ax
                         RET 
 
         STime:  mov cx, 1
+                pop di
                 pop dx
                 pop ax
                 RET
 ChKTime         ENDP
 ;========================Check============================
-
+ClearMessagePr  PROC    FAR
+        pusha
+                        mov bh,0       
+                        mov dh, 23;row
+                        mov dl, 00
+                        mov ah, 2
+                        int 10h
+                        mov di,0
+                        printclear2:
+                        mov al,Clearcheckmes[di]
+                                mov ah, 09h
+                                mov bh, 0
+                                mov bl, 0fh
+                                mov cx, 1
+                                int 10h
+                                inc dl
+                                mov bh, 0;pg number
+                                mov dh, 23;row
+                                mov ah, 2
+                                int 10h
+                                inc di
+                                cmp Clearcheckmes[di],'$'
+                                jnz printclear2    
+        popa
+                REt
+ClearMessagePr  ENDP
 PrntChk         PROC    FAR
                 mov ah, 0
                 or ah, isKingCheck[1]
@@ -1357,34 +1745,12 @@ PrntChk         PROC    FAR
                                 jnz printclear1    
                 popa
                 RET
-       clrKng: pusha
-                        mov bh,0       
-                        mov dh, 23;row
-                        mov dl, 00
-                        mov ah, 2
-                        int 10h
-                        mov di,0
-                        printclear2:
-                        mov al,Clearcheckmes[di]
-                                mov ah, 09h
-                                mov bh, 0
-                                mov bl, 0fh
-                                mov cx, 1
-                                int 10h
-                                inc dl
-                                mov bh, 0;pg number
-                                mov dh, 23;row
-                                mov ah, 2
-                                int 10h
-                                inc di
-                                cmp Clearcheckmes[di],'$'
-                                jnz printclear2    
-        popa
+       clrKng: CALL ClearMessagePr
                 RET
 PrntChk         ENDP
 
 
-ClrLstChk       PROC    FAR
+ClrLstChk       PROC    FAR     ;dx= king cell
                 mov lstValidDirection[0], dx
                 mov lstValidDirection[2], dx
                 mov lstValidDirection[4], dx
@@ -1399,7 +1765,7 @@ ClrLstChk       ENDP
 
 ChecKKing       PROC    ;si = player number
                 pusha
-                mov bl, playerCells[si]
+                mov bl, playerCells[si] ;bl  to store = playerCell,col,row
                 mov cl, PlayerCols[si]
                 mov ch, playerRows[si]
                 pusha 
@@ -1419,7 +1785,7 @@ ChecKKing       PROC    ;si = player number
                 mov PlayerCols[si], al
                 mov al,kingsRows[si]
                 mov playerRows[si], al
-                mov dl, kingsCells[si]
+                mov dl, kingsCells[si]  ;dx = king cell use in clear lstValidMvs
                 mov dh, 0
                 ;=================chks of pawn =========;
                 CALL ClrLstChk
@@ -1437,8 +1803,8 @@ ChecKKing       PROC    ;si = player number
                 je chkdShrt
                 ;=================chks of rook =========;
                 CALL ClrLstChk
-                
                 CALL ValidateRook
+
                 mov cx, 4
                 mov bx, 0
         lpRkCh: mov di, lstValidDirection[bx]
@@ -1477,7 +1843,7 @@ ChecKKing       PROC    ;si = player number
                 cmp al, bishop
                 je chked
                 cmp al, queen
-                je chkdShrt
+                je chked
                 add bx, 2
                 loop lpBhCh
                 
@@ -1491,7 +1857,7 @@ ChecKKing       PROC    ;si = player number
                 mov playerCells[si], bl
                 mov PlayerCols[si], cl
                 mov playerRows[si], ch
-
+                ;======== return to validate mvs
                 mov cx, 64
                 mov di, 0
         tempMv1: mov al, validateMovesTemp[di]
@@ -1499,6 +1865,7 @@ ChecKKing       PROC    ;si = player number
                 inc di
                 loop tempMv1
                 CALL DrawHighlightedMvs
+                
                 popa
                 CALL PrntChk
                 RET
@@ -1597,6 +1964,111 @@ RET
 SelectValidationOfPeice ENDP
 
 
+AddCellToWait   PROC FAR                ;si
+                pusha
+                mov al, playerCols[si]
+                mov ah, playerRows[si]
+                mov bl, tailTimeArray  
+                mov bh, 0 
+                mov timerArray[bx], ax
+                add tailTimeArray, 2
+                cmp tailTimeArray, 68;34*2
+                jne extAddCell
+                mov tailTimeArray, 0
+        extAddCell:
+                 ;====================
+                mov al, 30h
+                shl si, 1
+                mov di, playerPos[si]
+                CALL DrawSquareBordSm
+                
+                ;==================== 
+                popa
+                RET
+AddCellToWait   ENDP
+
+
+ClrCharInStPos  PROC    FAR ;(di = startPos; al = rows; si = cell)
+                      push ax
+                        ;=========== get color of cell that player stand on =====;
+                               push bx
+                                mov bx, si              ;bl = cell
+                                add bl, al              ;bl= row + cell
+                                and bl, 1               ;if odd => cell color index 1 
+                                mov bh, 0               ;if even=> cell color index 0
+                                mov al, color[bx]       ;load color
+                                pop bx
+                        ;=========== get color of cell that player stand on =====;
+                        CALL DrawSquareBordSm
+                        pop ax
+                RET
+ClrCharInStPos  ENDP
+
+;delete if not
+UpdateCellWait  PROC    FAR
+                pusha
+        loopOnWaitCell: 
+                mov al, headTimeArray
+                cmp al, tailTimeArray   ;if head = tail => mean empty 
+                je EXITUpdateCellWait   ;if exit
+                mov ah, 0
+                mov si, ax   ;si = index of curr [r, c] time array
+                mov cx, timerArray[si]  ;ch=row, cl =col
+                mov al, ch              ;
+                mov di,cx
+                CALL RowColToCell       ;(al = row, cl = col) =>si = cell number
+                mov bx, si              ;
+                push cx
+                CALL ChKTime            ;board cell = bx >>> cx=1[can move] | cx=0[can't move]
+                cmp cx, 1               ;chk if can move
+                pop cx
+                jne EXITUpdateCellWait  ;if can't mov
+                mov cx,di
+                mov al,ch
+                CALL RowColToStartPos   ;al =row    cl=col   =>di=StartPos
+                CALL ClrCharInStPos
+                ;;;=========== call graphics ==============;;;
+                
+                add headTimeArray, 2    ;delete by update head
+                cmp headTimeArray, 68   ;if head overflow return to 0
+                jmp loopOnWaitCell      ;if not continue without update head for overflow
+                mov headTimeArray, 0    ;update for overflow
+                jmp loopOnWaitCell       ;
+       
+                EXITUpdateCellWait:
+                popa
+                RET
+UpdateCellWait  ENDP
+
+
+
+
+
+
+
+SendMoveToAnotherPlayer PROC FAR
+                        pusha
+
+                        mov al, PlayerSelectedCell[si]
+                        mov VALUE, al
+                        CALL SEND
+
+                RcvLp:  mov dx , 3FDH   ; Line Status Register
+                        in al , dx      ;chk if i recived something
+                        AND al , 1    
+                        cmp al, 1       
+                        jne RcvLp      ;if not continue looping
+                        mov dx , 03F8H  ;else get character in al|value
+                        in al , dx
+
+                        mov al, playerCells[si]
+                        mov VALUE, al
+                        CALL SEND
+
+                        popa
+                        RET
+SendMoveToAnotherPlayer ENDP
+
 
 MovePeiceFromTo PROC    FAR ;si = playerNumber
                 pusha
@@ -1605,11 +2077,21 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 mov bl, playerCells[si]     ;bx = player cell
                 mov ax, si                  ;get valid state of cell
                 cmp validateMoves[bx], al   ;chk if one of valid moves of player
-                jne EXITMVEPEICE            ;if not => exit
+                je startMvePeiceF
+                CALL ClrHighlightedMvs      ;if not exit
+                mov playersState[si], playerMoveToChoosePeice
+                popa
+                RET
 
+
+                ;======= handel communication
+                startMvePeiceF: 
+                CALL SendMoveToAnotherPlayer
+                ;======= handel communication
                 ;======= handel move cell **from  ======;
                 ;== Graphically
-                CALL MvePieceFromGraphics     ;out==>bl = cell
+               CALL MvePieceFromGraphics 
+             ;out==>bl = cell
                 ;== Logically
                 mov bh, 0
                 mov peiceTimer[bx], 0         ;return time state of cell
@@ -1638,36 +2120,135 @@ MovePeiceFromTo PROC    FAR ;si = playerNumber
                 mov kingsCols[si], ah
 
                 mov ah, playerRows[si]
-                mov kingsCols[si], ah
-                
-
+                mov kingsRows[si], ah
                 ;== Graphically
         skpKng: CALL MvePieceToGraphics      ;out ===> bx = cell
                 ;== Logically
                 CALL SetTime                    ;(bx = cell) => peiceTime[bx] = curr time
+                CALL AddCellToWait
                 mov dl, board[bx]               ;get peice type that killed
                 and dl, peice
                 cmp dl, king                    ;chk if king
                 jne skipKingDead
-                
                 mov playersState[si], PlayerWin ;if king win
                 xor si, 3           ; to toggle the player number to change states
                 mov playersState[si], PlayerLose
                 xor si, 3           ;to return the number of the player again
                 mov isGameEnded, 1
-                 
-
         skipKingDead:        mov board[bx], al
-
-
-                
-                
-                
 EXITMVEPEICE:   CALL ClrHighlightedMvs
-                mov playersState[si], playerMoveToChoosePeice
+                cmp isGameEnded, 1
+                jne chngState
+                popa
+                RET
+        chngState:        mov playersState[si], playerMoveToChoosePeice
                 popa
                 RET
 MovePeiceFromTo ENDP
+
+
+
+CellToRowCol            PROC FAR        ;al = cell => al = row , cl = col
+                        mov ah, 0
+                        mov bh, 8
+                        DIV bh          ;al = q = row
+                                        ;ah = rem = col
+                        mov cl, ah
+                        RET
+CellToRowCol            ENDP 
+
+
+UpdateAnotherPlayer     PROC FAR  
+                        pusha
+                        ;======= player from
+                        mov al,from_against_player
+                        mov PlayerSelectedCell[si],al
+                        Call CellToRowCol          ;
+                        Call RowColToStartPos      ;al =row    cl=col   =>di=StartPos
+                        mov PlayerSelectedRow[si],al
+                        shl si, 1
+                        mov PlayerSelectedPos[si],di
+                        shr si, 1
+                        ;====== player to
+                        mov al,to_against_player
+                        mov playerCells[si],al
+                        Call CellToRowCol
+                        Call RowColToStartPos      ;al =row    cl=col   =>di=StartPos
+                        mov playerRows[si], al
+                        mov playerCols[si], cl
+                        shl si, 1
+                        mov playerPos[si],di
+                        shr si, 1
+                        popa
+                        RET
+UpdateAnotherPlayer     ENDP
+
+
+
+MovePeiceFromToAnotherPlayer PROC    FAR ;si = playerNumber
+                pusha
+                
+                ;=========== check if move validate =========;
+                CALL UpdateAnotherPlayer
+                mov bh, 0
+                mov bl, playerCells[si]     ;bx = player cell
+                ;======= handel move cell **from  ======;
+                ;== Graphically
+                CALL MvePieceFromGraphics 
+                ;out==>bl = cell
+                ;== Logically
+                mov bh, 0
+                mov al, board[bx]             ;*********** al = peice that should move
+                mov board[bx], emptyCell      ;set empty cell
+                
+
+                ;======= handel move cell **to  ======;
+                ;== hande if pawn and about to promote
+                mov dl, al      ;copy peice 
+                and dl, 7       ;get peice  type only
+                cmp dl, pawn    ;chk if pawn
+                jne skpPwnR      ;if not pawn skip
+                cmp playerRows[si], 0        ;if first row 
+                je  PrmPwnR
+                cmp playerRows[si], 7        ; or last row
+                jne skpKngR                   ;he is pawn so skip king
+        PrmPwnR: or al, 4        ;transfer peice to queen by set third bit
+                jmp skpKngR
+        skpPwnR: cmp dl, king    ;chk if king
+                jne skpKngR
+                mov ah, playerCells[si]
+                mov kingsCells[si], ah
+
+                mov ah, playerCols[si]
+                mov kingsCols[si], ah
+
+                mov ah, playerRows[si]
+                mov kingsRows[si], ah
+                ;== Graphically
+        skpKngR: CALL MvePieceToGraphics      ;out ===> bx = cell
+                ;== Logically
+                mov dl, board[bx]               ;get peice type that killed
+                and dl, peice
+                cmp dl, king                    ;chk if king
+                jne skipKingDeadR
+                mov playersState[si], PlayerWin ;if king win
+                xor si, 3           ; to toggle the player number to change states
+                mov playersState[si], PlayerLose
+                xor si, 3           ;to return the number of the player again
+                mov isGameEnded, 1
+        skipKingDeadR:        mov board[bx], al
+                cmp isGameEnded, 1
+                jne chngStateR
+                popa
+                RET
+        chngStateR:
+                ;========== check for checkmate
+                mov si, PlayerGameNumber       ;black moved => mov peice then check check another player
+                Call ChecKKing
+               
+                popa
+                RET
+MovePeiceFromToAnotherPlayer ENDP
 
 ;================= timer =====================;
 
@@ -1739,8 +2320,8 @@ GetCurrTime     PROC    FAR ;
         
                 cmp cl, GameMin;chk it time not ended
                 jl  ContG      ;if not ended continue
-                mov playersState[player1], PlayerLose
-                mov playersState[player2], PlayerLose
+                mov playersState[playerNum1], PlayerLose
+                mov playersState[playerNum2], PlayerLose
                 mov isGameEnded, 1
                 popa
                 RET
@@ -1799,8 +2380,222 @@ GetCurrTime     ENDP
 ;==========================================================================;
 ;==========================================================================;
 ;==========================================================================;
+;if i win
+PrntMsgWIN1         PROC FAR ;bx = offset of message
+        pusha
+                CALL ClearMessagePr
+                mov di,0
+                mov dl, 0
+                printPV31:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 23;row
+                        mov ah, 2
+                        int 10h
+                        
+                        mov al,player1[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 04h     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp player1[di],'$'
+                        jne printPV31
+
+                mov di, 0
+                printPV3:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 23;row
+                        mov ah, 2
+                        int 10h
+                        
+
+                        mov al,player1WinMess[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 04h     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp player1WinMess[di],'$'
+                        jne printPV3
+                popa
+                RET
+PrntMsgWIN1         ENDP
+
+
+PrntMsgWIN2         PROC FAR ;bx = offset of message
+        pusha
+                CALL ClearMessagePr
+                mov di,0
+                mov dl, 0
+                printPV41:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 23;row
+                        mov ah, 2
+                        int 10h
+                        
+                        mov al,player1[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 04h     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp player1[di],'$'
+                        jne printPV41
+
+                mov di, 0
+                printPV4:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 23;row
+                        mov ah, 2
+                        int 10h
+                        
+
+                        mov al,player2WinMess[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 04h     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp player2WinMess[di],'$'
+                        jne printPV4
+                popa
+                RET
+PrntMsgWIN2         ENDP
+
+
+PrntExt         PROC FAR ;bx = offset of message
+pusha
+                mov di,0
+                mov dl, 0
+                printPV5:
+                        ;dl = current col
+                        mov bh, 0;pg number     ;set cursor
+                        mov dh, 24;row
+                        mov ah, 2
+                        int 10h
+                        
+
+                        mov al,prntExitMess[di]
+                        mov ah, 09h     ;print character
+                        mov bh, 0       ;page
+                        mov bl, 0fh     ;bl = color
+                        mov cx, 1
+                        int 10h
+
+                        inc dl         
+                        inc di
+                        cmp prntExitMess[di],'$'
+                        jne printPV5
+                popa
+                RET
+PrntExt         ENDP
+
+
+ENDgameWin      PROC      FAR   
+
+                mov si, PlayerGameNumber
+                cmp playersState[si], PlayerWin
+                jne plyer2WIN
+                CALL PrntMsgWIN1
+                mov playerWinGame, 1
+                jmp WtTillExt
+
+        plyer2WIN: CALL PrntMsgWIN2
+                   mov playerWinGame, 2
+
+        WtTillExt:      CALL PrntExt
+        lpWtTil:        mov ah, 1
+                        int 16h
+                        jz chkExitRcv
+
+                        mov ah, 0
+                        int 16h
+                        cmp ah,3Eh
+                        je ExitWaitSend
+                        
+                chkExitRcv:
+                        mov dx , 3FDH   ; wait till second character
+                        in al , dx      ; 
+                        AND al , 1    
+                        cmp al, 1       
+                        jne lpWtTil  
+
+                        mov  dx , 03F8H  ;else get character in al|value
+                        in al , dx  
+                        cmp al,3Eh
+                        jne lpWtTil
+                        RET
+                        
+                ExitWaitSend:   mov VALUE, ah
+                                CALL SEND
+                                RET
+                RET
+ENDgameWin      ENDP
+
+
+ControllGame    PROC FAR        ;si, ax = value
+        pressUp:    
+                        cmp ah, 48h
+                        jne pressLeft
+                        CALL MoveUp
+                        jmp ExitControllGame
+
+        pressLeft:      cmp ah, 4bh
+                        jne pressDown
+                        Call MoveLeft
+                        jmp ExitControllGame
+
+        pressDown:      cmp ah, 50h  
+                        jne pressRight
+                        CALL MoveDown
+                        jmp ExitControllGame
+
+        pressRight:     cmp ah, 4dh
+                        jne pressZero
+                        CALL MoveRight
+                        jmp ExitControllGame
+        pressZero:              cmp   ah, 'R'
+                                jne   chkF4
+                                cmp   playersState[si], playerMoveToChoosePeice
+                                jne   stateLabel2
+                                CALL  SelectValidationOfPeice
+                                jmp   ExitControllGame
+        stateLabel2:            cmp   playersState[si], playerMoveToChooseAction
+                                jne   chkF4
+                                CALL  MovePeiceFromTo
+                                Call ChecKKing
+                                jmp   ExitControllGame
+                chkF4:          cmp ah,3Eh      ;chk if clik f4
+                                jne sndChar
+                                mov playersState[si], PlayerEndedGame
+                                mov isGameEnded, 2
+                                MOV VALUE, PlayerClkF4
+                                CALL SEND
+                                jmp ExitControllGame
+                sndChar:        CALL SendMessage
+                ExitControllGame:
+                RET
+ControllGame    ENDP        ;si, al = value
+
 
 StartGame PROC FAR
+
         ; ____ inialize video mode ____;
         mov      ax, 0a000h                        ;for inline drawing
         mov      es, ax
@@ -1811,134 +2606,93 @@ StartGame PROC FAR
         ; ____ inialize video mode ____;
         
         CALL DrawBoard                          ;inialize draw board
-
+        CALL InializeChar
         ;==== inialize timer
         mov ah, 2ch
         int 21h
         mov StartMin, cl
         mov StartSec, dh
-MAIN_LOOP:
-        mov si, 1
-        Call ChecKKing
         
-        mov si, 2
-        Call ChecKKing
-        ;================= Chk if ended ================;
-noActGM: cmp isGameEnded, 1
-        jne ContGame
-        CALL EndGameState
+
+MAIN_LOOP:
+noActGM:        
+         cmp isGameEnded, 1
+         jb ContGame            ;if blew one => not ended by player or kings
+         cmp isGameEnded, 1
+         jne finishGame
+         CALL ENDgameWin
+        finishGame: CALL EndGameState
         RET
         ;================= Continue Game ================;
         
-ContGame: CALL GetCurrTime
+ContGame:
+        CALL UpdateCellWait
+        CALL GetCurrTime
+                ;===== send
+                mov ah, 1
+                int 16h
+                jz recieveletter
+                mov ah, 0
+                int 16h
+                mov si, PlayerGameNumber
+                CALL ControllGame
+                ;===========Recieve from the othe player========;
+        recieveletter:    
+                mov dx , 3FDH   ; Line Status Register
+                in al , dx      ;chk if i recived something
+                AND al , 1    
+                cmp al, 1       
+                jne MAIN_LOOP      ;if not continue looping
 
-        mov ah, 1
-        int 16h
-        jz noActGM
+                mov  dx , 03F8H  ;else get character in al|value
+                in al , dx                      
+                cmp al, PlayerClkF4             ;chk if exit
+                jne chkForChat                  ;if not store from cell
+                mov isGameEnded, 2              ;else exit end game
+                jmp MAIN_LOOP                   ;and return to main loop
+        chkForChat:     cmp al, PlayerSentMessState        ;chk if p 
+                        jne storeFromCellAnotherPlayer
+                        mov VALUE, 1
+                        CALL SEND
+                        lppp1:   mov dx , 3FDH   ; wait till second character
+                                in al , dx      ; 
+                                AND al , 1    
+                                cmp al, 1       
+                                jne lppp1
+                        mov  dx , 03F8H  ;else get character in al|value
+                        in al , dx
+                        CALL RcvMessage
+                        jmp MAIN_LOOP
 
-        mov ah, 0
-        int 16h
+        storeFromCellAnotherPlayer:
+                mov from_against_player,al
+                mov VALUE, 1
+                CALL SEND
+                
 
-        ;or al, 00100000b ;capital letter
-         mov si, 1
-        cmp al, 'w'
-        jne pressA
-        Call MoveUp
-        jmp noActGM
-        
-        pressA: cmp al, 'a'
-                jne pressS
-                CALL MoveLeft
-                shrt: jmp noActGM
+        lppp:   mov dx , 3FDH   ; wait till second character
+                in al , dx      ; 
+                AND al , 1    
+                cmp al, 1       
+                jne lppp  
 
-        pressS: cmp al, 's'
-                jne pressD
-                CALL MoveDown
-                jmp noActGM
+                mov  dx , 03F8H  ;else get character in al|value
+                in al , dx   
 
-        pressD: cmp al, 'd'         ;right
-                jne pressQ
-                CALL MoveRight
-                jmp noActGM
+                mov to_against_player,al
+                mov si,PlayerGameNumber ;get player number
+                xor si,3
+                Call MovePeiceFromToAnotherPlayer
 
-        pressQ:         cmp al, 'q'
-                        jne pressUp
-                        cmp playersState[1], playerMoveToChoosePeice
-                        jne stateLabel1
-                        CALL SelectValidationOfPeice
-                        jmp noActGM
-        stateLabel1:    cmp playersState[1], playerMoveToChooseAction
-                        jne noActGM
-                        CALL MovePeiceFromTo
-        shrtMainLoop:   jmp MAIN_LOOP
-                        ;_________ highlight moves _____;
+                jmp MAIN_LOOP
+                ;==================== start move another player
+                ;==================== start move another player
+                
 
-
-        pressUp:        mov si, 2       ;check another player
-                        cmp ah, 48h
-                        jne pressLeft
-                        CALL MoveUp
-                        jmp noActGM
-
-        pressLeft:      cmp ah, 4bh
-                        jne pressDown
-                        Call MoveLeft
-                        jmp noActGM
-
-        pressDown:      cmp ah, 50h  
-                        jne pressRight
-                        CALL MoveDown
-                        jmp noActGM
-
-        pressRight:     cmp ah, 4dh
-                        jne pressZero
-                        CALL MoveRight
-        shrt2:          jmp shrt
-                        
-        pressZero:              cmp   al, '0'
-                                jne   MainEndGame
-                                cmp   playersState[2], playerMoveToChoosePeice
-                                jne   stateLabel2
-                                CALL  SelectValidationOfPeice
-                                jmp   shrt2
-        stateLabel2:            cmp   playersState[2], playerMoveToChooseAction
-                                jne   MainEndGame
-                                CALL  MovePeiceFromTo
-                                jmp   shrtMainLoop
-        MainEndGame:            cmp ah,3Eh      ;chk if clik f4
-                                jne shrt2
-                                mov playersState[1], PlayerEndedGame
-                                mov isGameEnded, 1
-
-        jmp shrt2
+                jmp MAIN_LOOP
 StartGame ENDP
-;_______ inialize board ___________;   
+;_______ inialize board ___________;  
 
-
-RowColToStartPos PROC ;al =row    cl=col   =>di=StartPos
-
-        push ax
-        push bx
-        push cx
-        push dx
-
-        mov dl,al               ;dl = row
-        mov al,boardWidth       ;al = width|hight
-        mul cl                  ;al = width*col
-        mov bx,ax               ;bx = width*col
-
-        mov ax,320*boardWidth   ;ax=320*hight
-        mul dx                  ;ax=320*hight*row
-
-        mov di,ax               ;di=320*row*hight
-        add  di,bx              ;di=320*row*hight+width*col
-
-        pop dx       
-        pop cx       
-        pop bx       
-        pop ax       
-        RET
-RowColToStartPos ENDP 
 
 ;; [move => cell] XOR validateMoves[cell], player
 
