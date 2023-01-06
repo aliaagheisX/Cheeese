@@ -1981,7 +1981,7 @@ AddCellToWait   PROC FAR                ;si
                 shl si, 1
                 mov di, playerPos[si]
                 CALL DrawSquareBordSm
-
+                
                 ;==================== 
                 popa
                 RET
